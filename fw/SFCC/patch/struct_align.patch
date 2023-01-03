@@ -1,0 +1,62 @@
+diff -Naur sblim-sfcc-2.1.0.orig/backend/cimxml/array.c sblim-sfcc-2.1.0/backend/cimxml/array.c
+--- sblim-sfcc-2.1.0.orig/backend/cimxml/array.c	2008-04-24 23:45:13.000000000 +0800
++++ sblim-sfcc-2.1.0/backend/cimxml/array.c	2015-04-07 17:43:32.000000000 +0800
+@@ -37,6 +37,9 @@
+ #include "dmalloc.h"
+ #endif
+ 
++#pragma pack(push) //chester: sart pack. align=4byte 
++#pragma pack(4)
++
+ struct native_array_item {
+   CMPIValueState state;
+   CMPIValue      value;
+@@ -50,6 +53,7 @@
+    struct native_array_item * data;
+ };
+ 
++#pragma pack(pop) //chester: end pack.
+ 
+ static struct native_array * __new_empty_array ( CMPICount,
+     CMPIType, CMPIStatus * );
+diff -Naur sblim-sfcc-2.1.0.orig/cimc/cimcdt.h sblim-sfcc-2.1.0/cimc/cimcdt.h
+--- sblim-sfcc-2.1.0.orig/cimc/cimcdt.h	2007-12-21 23:10:43.000000000 +0800
++++ sblim-sfcc-2.1.0/cimc/cimcdt.h	2015-04-07 17:44:58.000000000 +0800
+@@ -110,6 +110,8 @@
+    typedef float                      CIMCReal32;
+    typedef double                     CIMCReal64;
+ 
++#pragma pack(push) //chester: sart pack. align=4byte                                                                                                                          
++#pragma pack(4)
+    typedef struct _CIMCValuePtr {
+      void *ptr;
+      unsigned int length;
+@@ -313,6 +315,7 @@
+       CIMCString *msg;
+    } CIMCStatus;
+ 
++#pragma pack(pop) //chester: end pack.
+ 
+    /* Management Broker classification and feature support */
+ 
+diff -Naur sblim-sfcc-2.1.0.orig/frontend/sfcc/cmcidt.h sblim-sfcc-2.1.0/frontend/sfcc/cmcidt.h
+--- sblim-sfcc-2.1.0.orig/frontend/sfcc/cmcidt.h	2007-02-07 22:25:42.000000000 +0800
++++ sblim-sfcc-2.1.0/frontend/sfcc/cmcidt.h	2015-04-07 17:45:49.000000000 +0800
+@@ -168,6 +168,9 @@
+    typedef float                      CMPIReal32;
+    typedef double                     CMPIReal64;
+ 
++#pragma pack(push) //chester: sart pack. align=4byte                                                                                                                          
++#pragma pack(4)
++
+    typedef struct _CMPIValuePtr {
+      void *ptr;
+      unsigned int length;
+@@ -371,6 +374,7 @@
+       CMPIString *msg;
+    } CMPIStatus;
+ 
++#pragma pack(pop) //chester: end pack.
+ 
+    /* Management Broker classification and feature support */
+ 

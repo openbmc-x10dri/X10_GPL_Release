@@ -1,0 +1,9 @@
+telnet       23/tcp
+ntp          123/tcp
+ntp          123/udp
+http         80/tcp         www         # WorldWideWeb HTTP
+http         80/udp                     # HyperText Transfer Protocol
+https        443/tcp                    # http protocol over TLS/SSL
+https        443/udp
+http-alt     8080/tcp       webcache    # WWW caching service
+http-alt     8080/udp

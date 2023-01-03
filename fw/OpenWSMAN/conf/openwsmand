@@ -1,0 +1,81 @@
+#!/bin/sh
+WSMAN_CONF=/nv/wsman/openwsman.conf
+
+source /etc/scripts/service
+copy_conf_file "/etc/openwsman/openwsman.conf" "/wsman/openwsman.conf"
+
+check_authfile()
+{
+	if [ -f /sbin/openwsmand ]; then
+		if [ ! -d /nv/wsman ]; then
+			mkdir /nv/wsman
+		fi
+		if [ ! -f /nv/wsman/simple_auth.passwd ]; then
+#			htpasswd -bc /nv/wsman/simple_auth.passwd ADMIN ADMIN
+			touch /nv/wsman/simple_auth.passwd
+		fi
+	fi
+}
+
+start() {
+
+	if [ $WSMAN_SERVICE == "0" ];then
+		return ;
+	fi
+	echo -n "Starting openwsmand: "
+	check_authfile
+	(/sbin/openwsmand  -c $WSMAN_CONF -d&)   && echo "done." && return 0 ||
+	echo "failed."
+	return 1
+}	
+
+stop() {
+	echo -n "Shutting down openwsmand: "
+	killall openwsmand && echo "done." && return 0 ||
+	echo "failed."
+	return 1
+}
+
+reload() {
+	echo -n "Reloading openwsmand configuration: "
+	killall -HUP openwsmand && echo "done." && return 0 ||
+	echo "failed."
+	return 1
+}
+
+change_port() {
+	old_port=`sed -n '/\[server\]/,/\[.*\]/{/^port =.*\(\)/p}' $WSMAN_CONF | awk -F '=' '{print $2}'`
+	old_port=${old_port/ /}
+	
+	if [ -n "$WSMAN_PORT" -a "$old_port" != "$WSMAN_PORT" ];then
+		echo "New Wsman port "$WSMAN_PORT
+		sed -i '/\[server\]/,/\[.*\]/{s/\(^port =\).*/\1'$WSMAN_PORT'/}' $WSMAN_CONF
+	fi;
+}
+case "$1" in
+    start)
+	start
+	;;
+    stop)
+	stop
+	;;
+    status)
+	echo -n "Checking openwsmand status: "
+	ps --noheaders -C openwsmand || echo "stopped." 
+	;;
+    restart)
+	stop
+	start
+	;;
+    reload)
+	reload
+	;;
+    change_port)
+	change_port 
+	;;
+    *)
+	echo "Usage: openwsmand {start|stop|status|reload|restart}"
+	exit 1
+	;;
+esac
+exit $?

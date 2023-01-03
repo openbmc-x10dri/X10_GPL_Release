@@ -1,0 +1,11 @@
+#!/bin/sh
+
+copy_conf_file(){
+	if [ ! -f "/nv/$2" ];then
+		cp $1 /nv/$2 ;
+		echo "config /nv/"$2" doesn't exist. Copy the default file.";
+	fi
+}
+copy_conf_file "/etc/defaults/service.conf"  "service.conf"
+SERVICE_CONF=/nv/service.conf
+source $SERVICE_CONF

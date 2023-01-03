@@ -1,0 +1,4 @@
+Codebase: *
+Trusted-Library: true 
+Application-Name: Java viewer 
+permissions: all-permissions

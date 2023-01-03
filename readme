@@ -1,0 +1,9 @@
+This GPL release is based on Supermicro X10 BMC Firmware version 2.15.
+
+System Environment:	   Ubuntu 14.04 (32-bit)
+
+Compilation Instruction:
+1. Open Terminal
+2. sudo su
+3. cd fw
+4. make x10 ver=2.15

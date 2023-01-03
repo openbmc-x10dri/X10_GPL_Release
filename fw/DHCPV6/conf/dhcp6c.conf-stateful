@@ -1,0 +1,24 @@
+# Default dhpc6c configuration: it assumes the address is autoconfigured using
+# router advertisements.
+
+interface bond0 {
+	 send ia-na 0;
+	 request domain-name-servers;
+	 request domain-name;
+	 script "/etc/dhcpv6//dhcp6c-script";
+};
+interface eth0 {
+	 send ia-na 0;
+	 request domain-name-servers;
+	 request domain-name;
+	 script "/etc/dhcpv6//dhcp6c-script";
+};
+interface eth1 {
+	 send ia-na 0;
+	 request domain-name-servers;
+	 request domain-name;
+	 script "/etc/dhcpv6//dhcp6c-script";
+};
+id-assoc na 0 {
+
+};

@@ -1,0 +1,402 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+    <META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+	<title></title>
+	<!-- common css -->
+	<link rel="stylesheet" href="../css/basic.css" type="text/css">
+	<link rel="stylesheet" href="../css/grid/listgrid.css" type="text/css">
+	<!--common javascipt library -->
+	<script language="javascript" src="../js/grid/LWbase.js"></script> 
+	<script language="javascript" src="../js/grid/LWfactory.js"></script> 
+	<script language="javascript" src="../js/grid/LWdatagrid.js"></script> 
+	<script language="javascript" src="../js/utils.js"></script>
+	<script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script>
+	<script type="text/javascript">
+	/*
+	global variables
+	*/
+	var fan_mode_settings = 0;
+	var fan_mode = new Array();
+	var fan_mode_txt = new Array();
+	var fan_mode_status = new Array();
+	var fan_mode_count = 0;
+	var FanMode = 0;
+	var mainPage= "../cgi/url_redirect.cgi?url_name=configuration";
+
+	function PageInit()
+	{
+		fan_mode_txt[0] = lang.LANG_FAN_SET_STANDARD;
+		fan_mode_txt[1] = lang.LANG_FAN_SET_FULL;
+		fan_mode_txt[2] = lang.LANG_FAN_SET_OPTIMAL;
+		fan_mode_txt[3] = lang.LANG_FAN_SET_PUE2_OPTIMAL;
+		fan_mode_txt[4] = lang.LANG_FAN_SET_HEAVYIO;
+		fan_mode_txt[5] = lang.LANG_FAN_SET_PUE3_OPTIMAL;
+		fan_mode_status[0] = lang.LANG_FAN_STATUS_STANDARD;
+		fan_mode_status[1] = lang.LANG_FAN_STATUS_FULL;
+		fan_mode_status[2] = lang.LANG_FAN_STATUS_OPTIMAL;
+		fan_mode_status[3] = lang.LANG_FAN_STATUS_PUE2_OPTIMAL;
+		fan_mode_status[4] = lang.LANG_FAN_STATUS_HEAVYIO_OPTIMAL;
+		fan_mode_status[5] = lang.LANG_FAN_STATUS_PUE3_OPTIMAL;
+
+		document.title = lang.LANG_FAN_TITLE;
+		document.getElementById("saveBtn").value = lang.LANG_FAN_SAVE;
+        SmartCoolObj = document.getElementById("SmartCooling");
+        SmartCoolObj.onclick = SmartCoolClickEvent;
+        SmartCoolDesc = document.getElementById("smartCoolDesc");
+
+		GetPlatformCapability();
+	}
+		
+	function GetPlatformCapability()
+	{
+		Loading(true);	    
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'Get_PlatformCap.XML=(0,0)&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(url, {method: 'post', parameters:pars, onComplete: GetPlatformCapabilityHandler});
+	}
+
+	function GetPlatformCapabilityHandler(originalRequest)
+	{
+		var i, j;
+		var temp_mode;
+		var temp_mode_txt;
+
+		if (originalRequest.readyState == 4 && originalRequest.status == 200)
+		{
+			var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+			var xmldoc = GetResponseXML(response);
+			if(xmldoc == null)
+			{
+				SessionTimeout();
+				return;
+			}
+			else
+			{
+				var FanModeSupport = 0;
+				var IPMI = xmldoc.documentElement;
+				CapObj = IPMI.getElementsByTagName('Platform');
+				CapValue = CapObj[0].getAttribute("FanModeSupport");
+				FanModeSupport = parseInt(CapValue,16);
+				CapValue = CapObj[0].getAttribute("SmartCoolCap");
+                SmartCoolCap = parseInt(CapValue,16);
+				CapValue = CapObj[0].getAttribute("SmartCooling");
+				SmartCoolState = parseInt(CapValue,16);
+			}
+		}
+
+		fan_mode_settings = FanModeSupport & 0x00FF;
+
+		if( fan_mode_settings == 0 )
+		{
+			alert("This platform doesn't support Fan Control through IPMI");
+			document.getElementById("saveBtn").disabled = true;
+		}
+		else
+		{
+			for(i=0; i<16; i++)
+			{
+				if(((fan_mode_settings >> i) & 0x1) == 0x1)
+				{
+					fan_mode[fan_mode_count] = i;
+					fan_mode_count++;
+				}
+			}
+
+			for(i=0; i<fan_mode_count; i++)
+			{
+				j = fan_mode[i];
+				temp_mode = "Mode"+ i;
+				temp_mode_txt = "Mode" + i + "TXT";
+
+				document.getElementById(temp_mode).style.visibility = "visible";
+				document.getElementById(temp_mode_txt).innerHTML = fan_mode_txt[j];
+				document.getElementById(temp_mode_txt).style.visibility = "visible";
+			}
+		}
+		
+		$(TAG_ALERT)
+		$(TAG_MAINPAGE)
+		getFanMode();
+
+        if(SmartCoolCap){
+            SmartCoolDesc.innerHTML = lang.LANG_FAN_ACTIVATE_SMART_COOLING;
+        	SmartCoolObj.style.visibility = "visible";			
+            if(SmartCoolState){
+                SmartCoolObj.checked = true;
+                SmartCoolClickEvent();
+            }
+            else
+            {
+            	SmartCoolObj.checked = false;
+            }
+        }
+        else
+        {
+        	SmartCoolObj.style.visibility = "hidden";
+        	SmartCoolDesc.innerHTML = "";
+        }
+	}
+
+	function getFanMode()
+	{
+		Loading(true);
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'GET_FAN_MODE.XML=(0,0)&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(url, {method: 'post', parameters:pars, onComplete: getFanModeHandler});
+	}
+
+	function searchMode(currentMode)
+	{
+		var i;
+		var index = currentMode;
+
+		for(i=0; i<fan_mode_count; i++)
+		{
+			if(currentMode == parseInt(fan_mode[i], 10))
+			{
+				index = i;
+				break;
+			}
+		}
+
+	    	if (currentMode == 0)
+			SelFAN_Mode(index, 0);		// Standard Mode
+		else if (currentMode == 1)
+			SelFAN_Mode(index, 1);		// Full Speed Mode
+		else if (currentMode == 2)
+			SelFAN_Mode(index, 2);		// Optimal Mode
+		else if (currentMode == 3)
+			SelFAN_Mode(index, 3);		// PUE2 Optimal Mode
+		else if (currentMode == 4)
+			SelFAN_Mode(index, 4);		// Heavy IO Mode
+		else if (currentMode == 5)
+			SelFAN_Mode(index, 5);		// PUE3 Optimal Mode
+		else
+			alert(lang.LANG_FAN_STATUS_UNKNOWN); 
+	}
+	
+	function getFanModeHandler(originalRequest)
+	{
+		Loading(false);
+		if (originalRequest.readyState == 4 && originalRequest.status == 200)
+		{
+			var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+			var xmldoc = GetResponseXML(response);
+			
+			if(xmldoc == null)
+			{
+				SessionTimeout();
+				return;
+			}	
+			var IPMIRoot = xmldoc.documentElement;
+
+			FanNode = IPMIRoot.getElementsByTagName('FAN_INFO');
+	    		STATE = FanNode[0].getAttribute("Mode");
+	    		var currentMode = parseInt(STATE, 10);
+			searchMode(currentMode);
+		}
+	}
+
+	function SelFAN_Mode(index, mode)
+	{
+        if(!SmartCoolState || SmartCoolObj.checked==false){
+		FanMode = mode;
+		var tmpMode = "Mode" + index;
+		document.getElementById("currentMode").innerHTML = fan_mode_status[mode];
+		document.getElementById("currentMode").style.color = '#009900';
+		document.getElementById(tmpMode).checked = 1;
+	}
+    }
+
+	function set_FANMode0()
+	{	FanMode = fan_mode[0];	}
+	function set_FANMode1()
+	{	FanMode = fan_mode[1];	}
+	function set_FANMode2()
+	{	FanMode = fan_mode[2];	}
+	function set_FANMode3()
+	{	FanMode = fan_mode[3];	}
+	function set_FANMode4()
+	{	FanMode = fan_mode[4];	}
+	function set_FANMode5()
+	{	FanMode = fan_mode[5];	}
+	
+	function doSaveFanMode()
+	{
+		if(confirm(lang.LANG_FAN_CONFIRM))
+		{
+			Loading(true);
+			var smartcool = 0;
+
+            if(SmartCoolObj.checked==true)            	
+            	smartcool = 1;
+
+
+			var url = '/cgi/config_fan_mode.cgi';
+			var pars = 'FanMode=' + FanMode + "&smartcool=" + smartcool;
+			var myAjax = new Ajax.Request(
+	                 url,
+	                 {method: 'post',parameters:pars, onComplete: doSaveFanModeHandler}//reigister callback function
+	                 ); 
+	    }
+	}
+	
+	function doSaveFanModeHandler(originalRequest)
+	{
+		Loading(false);
+        if(SmartCoolObj.checked==true)
+        {
+            SmartCoolState = 1;
+        }
+		getFanMode();
+	}
+
+    function SmartCoolClickEvent()
+    {
+		var i, j;
+		var temp_mode;
+		var temp_mode_txt;
+        var preferred_mode;
+        var preferred_mode_2nd_option;
+        
+        document.getElementById("smartCoolDesc").innerHTML = lang.LANG_FAN_ACTIVATE_SMART_COOLING;
+
+        if(SmartCoolObj.checked==true)
+        {	
+			for(i=0; i<fan_mode_count; i++)
+			{
+				j = fan_mode[i];
+				temp_mode = "Mode"+ i;
+				temp_mode_txt = "Mode" + i + "TXT";
+                document.getElementById("currentMode").innerHTML = lang.LANG_FAN_DEACTIVATE_SMART_COOL;
+                document.getElementById("currentMode").style.color = '#009900';
+				document.getElementById(temp_mode).style.visibility = "hidden";
+				document.getElementById(temp_mode_txt).style.visibility = "hidden";
+			}
+        }
+        else
+        {
+			for(i=0; i<fan_mode_count; i++)
+			{
+				j = fan_mode[i];
+				temp_mode = "Mode"+ i;
+				temp_mode_txt = "Mode" + i + "TXT";
+                //document.getElementById("currentMode").innerHTML = lang.;
+				document.getElementById(temp_mode).style.visibility = "visible";
+				document.getElementById(temp_mode_txt).style.visibility = "visible";
+			}
+            if(SmartCoolState)
+            {
+				//The default mode is PUE2 while unchecking the smart cooling.
+				//If PUE2 mode is not supported on this platform, choose optimal mode
+				//If both optimal and PUE2 are not supported on this platform, choose standard speed.
+				preferred_mode            = 0;
+				preferred_mode_2nd_option = 0;
+ 
+				for(i=0; i<fan_mode_count; i++)
+				{
+					curr_mode = parseInt(fan_mode[i], 10)
+					if (curr_mode == 3)
+						preferred_mode = 3;
+
+					if(curr_mode == 2)
+						preferred_mode_2nd_option = 2;						
+				}
+
+                if( (preferred_mode != 3) )
+                {
+                        preferred_mode = preferred_mode_2nd_option;
+                }
+
+                searchMode(preferred_mode);
+            }
+        }
+    }
+
+	</script>
+</head>
+<body onload="PageInit()">
+	<span class="LoadingStyle" id="loading"></span>
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%">
+        <tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td>
+        	<td>
+        		<div class="mtitle">
+        			<script>document.writeln(lang.LANG_FAN_CAPTION)</script>
+        		</div>
+        	</td>
+        </tr>
+        <tr>
+        	<td><br></td>
+        	<td><br></td>
+        </tr>
+        <tr>
+        	<td></td>
+            <td>
+                <table class="boxSection"><tr><td><div class="textA">
+                	<script>document.writeln(lang.LANG_FAN_DESC)</script></div></td><tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+        	<td><br></td>
+        	<td><br></td>
+        </tr>
+        <tr>
+        	<td></td>
+        	<td>
+        		<!-- below area is needed to modify by yourself -->
+        		<table width="100%" border="0">
+            <td><input type="checkbox" name="SmartCooling" id="SmartCooling" style="visibility: hidden" $(TAG_DISABLE)/>                    
+            <span class="labelhead" id="smartCoolDesc" name="smartCoolDesc"></span>
+            </td>
+			<tr>
+				<td><span class="subHeader" id="currentMode" name="currentMode"></span></td>
+			</tr>
+			<tr>
+				<td>
+				<input type="radio" class="btnStyle" name="FanMode" id="Mode0" onclick="set_FANMode0()" style="visibility: hidden" $(TAG_DISABLE)>
+				<span class="labelhead" id="Mode0TXT" style="visibility: hidden"></span>
+				</td>
+			</tr>
+			<tr>
+				<td>
+				<input type="radio" class="btnStyle" name="FanMode" id="Mode1" onclick="set_FANMode1()" style="visibility: hidden" $(TAG_DISABLE)>
+				<span class="labelhead" id="Mode1TXT" style="visibility: hidden"></span>
+				</td>
+			</tr>
+			<tr>
+				<td>
+				<input type="radio" class="btnStyle" name="FanMode" id="Mode2" onclick="set_FANMode2()" style="visibility: hidden" $(TAG_DISABLE)>
+				<span class="labelhead" id="Mode2TXT" style="visibility: hidden"></span>
+				</td>
+			</tr>
+			<tr>
+				<td>
+				<input type="radio" class="btnStyle" name="FanMode" id="Mode3" onclick="set_FANMode3()" style="visibility: hidden" $(TAG_DISABLE)>
+				<span class="labelhead" id="Mode3TXT" style="visibility: hidden"></span>
+				</td>
+			</tr>
+			<tr>
+				<td>
+				<input type="radio" class="btnStyle" name="FanMode" id="Mode4" onclick="set_FANMode4()" style="visibility: hidden" $(TAG_DISABLE) >
+				<span class="labelhead" id="Mode4TXT" style="visibility: hidden"></span>
+				</td>
+			</tr>
+			<tr>
+				<td>
+				<input type="radio" class="btnStyle" name="FanMode" id="Mode5" onclick="set_FANMode5()" style="visibility: hidden" $(TAG_DISABLE)>
+				<span class="labelhead" id="Mode5TXT" style="visibility: hidden"></span>
+				</td>
+			</tr>
+			</table>		
+        		<br>
+        		<input type="button" class="btnStyle" name="saveBtn" id="saveBtn" onclick="doSaveFanMode()" $(TAG_DISABLE)>
+        		<!-- end of this area -->
+       	   	</td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -1,0 +1,82 @@
+diff -Naur sblim-sfcb-1.3.8.orig/array.h sblim-sfcb-1.3.8/array.h
+--- sblim-sfcb-1.3.8.orig/array.h	2006-04-26 09:18:28.000000000 +0800
++++ sblim-sfcb-1.3.8/array.h	2015-04-07 17:36:14.000000000 +0800
+@@ -24,6 +24,9 @@
+ #ifndef array_h
+ #define array_h
+ 
++#pragma pack(push) //chester: sart pack. align=4byte                                                                                                                          
++#pragma pack(4)
++
+ struct native_array_item {
+    CMPIValueState state;
+    CMPIValue value;
+@@ -40,4 +43,6 @@
+    struct native_array_item *data;
+ };
+ 
++#pragma pack(pop) //chester:end pack
++
+ #endif
+diff -Naur sblim-sfcb-1.3.8.orig/classSchema2c.c sblim-sfcb-1.3.8/classSchema2c.c
+--- sblim-sfcb-1.3.8.orig/classSchema2c.c	2008-12-19 05:34:33.000000000 +0800
++++ sblim-sfcb-1.3.8/classSchema2c.c	2015-04-07 17:37:28.000000000 +0800
+@@ -55,6 +55,9 @@
+ extern char * configfile;
+ extern ProviderRegister *pReg;
+ 
++#pragma pack(push)  //chester: sart pack. align=4byte                                                                                                                         
++#pragma pack(4)
++
+ typedef struct _Class_Register_FT Class_Register_FT;
+ struct _ClassRegister {
+    void *hdl;
+@@ -94,6 +97,7 @@
+    char *names[1];
+ } NameSpaces;
+ 
++#pragma pack(pop) //chester: end pack.
+ 
+ static void buildClassSource(ClassRegister * cr, char *ns)
+ {
+diff -Naur sblim-sfcb-1.3.8.orig/cmpidt.h sblim-sfcb-1.3.8/cmpidt.h
+--- sblim-sfcb-1.3.8.orig/cmpidt.h	2009-12-22 10:28:52.000000000 +0800
++++ sblim-sfcb-1.3.8/cmpidt.h	2015-04-07 17:38:50.000000000 +0800
+@@ -216,6 +216,8 @@
+   typedef float CMPIReal32;
+   typedef double CMPIReal64;
+ 
++#pragma pack(push) //chester: sart pack. align=4byte                                                                                                                          
++#pragma pack(4)
+   typedef struct _CMPIValuePtr
+   {
+     void *ptr;
+@@ -499,6 +501,7 @@
+     CMPIString *msg;
+   } CMPIStatus;
+ 
++#pragma pack(pop) //chester: end pack.
+ 
+   /* Management Broker capabilities and feature support */
+ 
+diff -Naur sblim-sfcb-1.3.8.orig/objectImpl.h sblim-sfcb-1.3.8/objectImpl.h
+--- sblim-sfcb-1.3.8.orig/objectImpl.h	2009-12-22 08:18:29.000000000 +0800
++++ sblim-sfcb-1.3.8/objectImpl.h	2015-04-07 17:39:52.000000000 +0800
+@@ -80,6 +80,9 @@
+ #define _XPFX(p,x) p ## x
+ #define PFX(p,x) _XPFX(p,x) 
+ 
++#pragma pack(push) //chester: sart pack. align=4byte                                                                                                                          
++#pragma pack(4)
++
+ typedef struct {
+    union {
+       struct {
+@@ -303,6 +306,7 @@
+    PFX(CLPFX,ClSection) qualifiers;
+ } PFX(CLPFX,ClParameter);
+ 
++#pragma pack(pop) //chester: end pack.
+ 
+ #ifndef SETCLPFX
+ 

@@ -1,0 +1,11 @@
+--- /drivers/net/bonding/bond_main.c	2009-03-24 05:55:52.000000000 +0800
++++ /drivers/net/bonding/bond_main.c	2011-03-09 13:22:37.000000000 +0800
+@@ -3862,6 +3862,8 @@
+ 		break;
+ 	}
+ 
++	/* Release the bonded slaves */
++	bond_release_all(bond_dev);
+ 
+ 	if ((bond->params.mode == BOND_MODE_TLB) ||
+ 	    (bond->params.mode == BOND_MODE_ALB)) {

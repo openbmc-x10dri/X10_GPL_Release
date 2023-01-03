@@ -1,0 +1,169 @@
+#!/bin/sh
+HTTP_CONF=/nv/lighttpd.conf
+EXEC=lighttpd
+SEDCMD="sed -i"
+WEBPATH=/usr/local/httpd
+DEF_HTTP_CONF=$WEBPATH/lighttpd.conf 
+SERVERCMD="./sbin/lighttpd -f $HTTP_CONF -m lib/"
+RESULT_FILE=/tmp/httpd.st
+TMPPATH=/tmp/httpd
+CERT_FILE=/nv/server.pem
+CERT_SUB='/C=US/ST=CA/L=SanJose/CN=www.supermicro.com'
+CERT_CONF=/etc/ssl/openssl.cnf
+HTTPS_START_PATTERN='\$SERVER\[\"socket\"\]'
+SSL_REDIRECT_FILE="lighttpd_sslredirect.conf"
+
+source /etc/scripts/service
+export OPENSSL_CONF=/etc/ssl/openssl.cnf
+ssl_redirect(){
+	if [ "$SSL_REDIRECT" == "1" ];then
+		$SEDCMD 's/^#\(.*\"mod_redirect\"\)/\1/' $HTTP_CONF
+		if [ ! -z "`grep $SSL_REDIRECT_FILE $HTTP_CONF`" ];then
+			$SEDCMD "s/^#\(.*_sslredirect.conf\)/\1/" $HTTP_CONF
+		else
+			echo "include \"/usr/local/httpd/$SSL_REDIRECT_FILE\"" >> $HTTP_CONF
+		fi
+	else 
+		$SEDCMD "s/^include \(.*_sslredirect.conf\)/#include \1/" $HTTP_CONF
+
+	fi
+}
+
+changeport()
+{
+	copy_conf_file $DEF_HTTP_CONF "lighttpd.conf"
+	old_port=`awk -F '=' '/server.port/{print $2}' $HTTP_CONF`
+	old_port=${old_port/ /}
+
+	if [ -n "$HTTP_PORT" -a "$old_port" != "$HTTP_PORT" ];then
+		$SEDCMD "s/\(server.port.*\)=.*/\1 = $HTTP_PORT/" $HTTP_CONF
+		echo "New Http port: $HTTP_PORT.........."
+	fi
+	old_port=`sed -n 's/$SERVER\[.*\":\(.*\)\".*/\1/p' $HTTP_CONF`
+	if [ -n "$HTTPS_PORT" -a "$old_port" != "$HTTPS_PORT" ];then
+		$SEDCMD "s/\(\$SERVER\[\"socket\"\] ==\) .*/\1 \":$HTTPS_PORT\" \{/g" $HTTP_CONF;
+		echo "New Https port: $HTTPS_PORT.........."
+	fi
+}
+http_only_func()
+{
+	$SEDCMD "/$HTTPS_START_PATTERN/,/}/ {s/^#//}" $HTTP_CONF
+	$SEDCMD "/$HTTPS_START_PATTERN/,/}/ {s/^/#/}" $HTTP_CONF
+	changeport
+}
+https_only_func()
+{
+	$SEDCMD "/$HTTPS_START_PATTERN/,/}/ {s/^#//}" $HTTP_CONF
+	$SEDCMD "/$HTTPS_START_PATTERN/,/}/ {/server.use-ipv6/d}" $HTTP_CONF
+
+	$SEDCMD "s/\(server.port.*\)=.*/\1 = $HTTPS_PORT/" $HTTP_CONF
+	$SEDCMD "/$HTTPS_START_PATTERN/{s/^/#/}" $HTTP_CONF
+	$SEDCMD "/$HTTPS_START_PATTERN/,/}/ {s/^}/#}/}" $HTTP_CONF
+}
+http_https_func(){
+	$SEDCMD "/$HTTPS_START_PATTERN/,/}/ {s/^#//}" $HTTP_CONF
+	changeport
+}
+
+
+create_cert()
+{
+	/etc/ssl/CA.sh -newca 
+}
+test_cert(){
+	if [ -f $CERT_FILE ];then 
+		openssl verify $CERT_FILE > /tmp/cert.st 2>&1;
+		if [ -z "`cat /tmp/cert.st | grep OK`" ];then 
+			if [ -z "`cat /tmp/cert.st | grep 'error 20 at 0 depth lookup'`" ];then 
+				if [ -z "`cat /tmp/cert.st | grep 'certificate is not yet valid'`" ];then 
+					create_cert;
+				else
+	                echo "SSL Certificate is not yet valid. Time maybe lost."  
+				fi
+			fi			
+		fi
+		openssl x509 -noout -modulus -in $CERT_FILE | openssl md5 > /tmp/a1 2>&1;
+		openssl rsa -noout -modulus -in $CERT_FILE | openssl md5 > /tmp/a2 2>&1;
+		if [ "`cat /tmp/a1`" == "`cat /tmp/a2`" ];then
+			echo "SSL certificate verified OK."
+		else
+			create_cert;
+		fi
+		rm /tmp/cert.st /tmp/a1 /tmp/a2			
+	else 
+		create_cert;
+	fi
+}
+
+test_config()
+{
+	cd $WEBPATH;./sbin/lighttpd -t -f $HTTP_CONF > $RESULT_FILE 2>&1
+    if [ -z "`cat  $RESULT_FILE | grep  OK`" ];then  
+		cp $DEF_HTTP_CONF /nv && echo "the web conifg file is cortupted;load default web configuration file.......";
+	fi
+	rm  $RESULT_FILE
+}
+webserver_status(){
+
+	if [ "$HTTP_SERVICE" == "1" -o "$HTTPS_SERVICE" == "1" ];then
+		return 1;
+	fi
+	return 0;
+}
+start_webserver()
+{
+	webserver_status
+	if [ $? -eq 0 ];then
+		return;
+	fi
+	echo "start Web server ............."
+	copy_conf_file $DEF_HTTP_CONF "lighttpd.conf"
+    if [ ! -d $TMPPATH ]; then mkdir $TMPPATH; fi;rm -f $TMPPATH/*
+    test_config
+	test_cert
+    cd $WEBPATH;$SERVERCMD
+}
+stop_webserver()
+{
+    killall -9 lighttpd;
+
+}
+
+case $1 in 
+    start)
+	start_webserver 
+    ;;
+    stop)
+	stop_webserver && echo "Stop web server .............."
+    ;;
+    restart)
+	stop_webserver
+	start_webserver
+    ;;
+    change_port)
+	changeport || echo "change port fail"
+    ;;
+	cert)
+	test_cert
+	;;
+	http_only)
+	stop_webserver
+	http_only_func
+	start_webserver
+	;;
+	https_only)
+	stop_webserver
+	https_only_func
+	start_webserver
+	;;
+	http_https)
+	stop_webserver
+	http_https_func
+	start_webserver
+	;;
+	ssl_redirect)
+	ssl_redirect
+	;;
+    *)
+    ;;
+esac

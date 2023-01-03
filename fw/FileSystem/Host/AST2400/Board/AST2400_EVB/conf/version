@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<Config>
+	<TagName>
+		<TagNameEntry NameValue="BL_SUPERMICRO_X7SB3_2014-04-30_B0070"/>
+    </TagName>
+ <!-- Device ID Information 
+    Device ID - 				1 byte
+    Device Revision - 			1 byte
+    Firmware Revision 1 - 		1 byte
+    Firmware Revision 2 - 		1 byte
+    IPMI Version - 				1 byte
+    Additional Device Support - 1 byte
+    Manufacturer ID - 			3 bytes
+    Product ID - 				2 bytes
+    -->
+    <DevIdTbl>
+	    <DevIdEntry DeviceID="0x20" DeviceRev="0x01" FirmwareRev1="0x8" FirmwareRev2="0x99"  IPMIVer="0x02"  AddtnlDevSup="0xBF" ManfID="0x2A7C" PdtID="0x0728" />
+    </DevIdTbl>
+</Config>

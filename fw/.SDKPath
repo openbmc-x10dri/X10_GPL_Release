@@ -1,0 +1,4 @@
+EXTRPATH_tmp=SDK
+EXTRPATH =$(strip $(shell cd $(PRJ_PATH);if [ ! -d $(PRJ_PATH)/$(EXTRPATH_tmp) ];then mkdir -p $(PRJ_PATH)/$(EXTRPATH_tmp); fi ;cd $(PRJ_PATH);pwd ))
+DTKPATH=$(shell cd $(EXTRPATH)/$(EXTRPATH_tmp);pwd)
+SDKPATH=$(shell cd $(EXTRPATH)/$(EXTRPATH_tmp);pwd)

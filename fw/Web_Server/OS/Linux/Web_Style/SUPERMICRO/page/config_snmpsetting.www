@@ -1,0 +1,419 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
+<head>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+    <META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+	  <title></title>
+	  <link rel="stylesheet" href="../css/basic.css" type="text/css">
+	  <script language="javascript" src="../js/utils.js"></script> 
+	  <script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script>
+	<!-- SNMP javascript start -->
+<script type="text/javascript">		
+var mainPage = "../cgi/url_redirect.cgi?url_name=configuration";
+
+function PageInit()
+{
+	SNMPSave=document.getElementById("ButtonSave");
+	SNMPSave.value=lang.LANG_CONF_SNMP_SAVE;
+
+  	SNMPSw=document.getElementById("SWITCHSNMP");
+	SNMPV2=document.getElementById("SNMP_V2");
+	SNMPV3=document.getElementById("SNMP_V3");
+	SNMPROComm=document.getElementById("SNMP_ROComm");
+	SNMPRWComm=document.getElementById("SNMP_RWComm");
+	SNMPUserName=document.getElementById("SNMP_UserName");
+	SNMPAuthMD5=document.getElementById("SNMP_md5");
+	SNMPAuthSHA1=document.getElementById("SNMP_sha1");
+	SNMPPrivDES=document.getElementById("SNMP_des");
+	SNMPPrivAES=document.getElementById("SNMP_aes");
+	SNMPAuthKey=document.getElementById("SNMP_AuthKey");
+	SNMPPrivKey=document.getElementById("SNMP_PrivKey");
+	
+	$(TAG_ALERT)
+	$(TAG_MAINPAGE)	
+	SNMPV2Disable();
+	SNMPV3Disable();
+	SNMPReading();
+}
+
+function SNMPReading()
+{
+	Loading(true);
+	var url = '/cgi/ipmi.cgi';
+	var pars = 'SNMP_INFO.XML=(0,0)&time_stamp='+(new Date()) ;
+	var myAjax = new Ajax.Request(
+                 url,
+                 {method: 'post',parameters:pars, onComplete: SNMPReadingResult}//reigister callback function
+                 ); 
+}
+
+function SNMPReadingResult(originalRequest)
+{
+	Loading(false);
+	if (originalRequest.readyState == 4 && originalRequest.status == 200)
+	{
+	 	var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+	 	var xmldoc = GetResponseXML(response);
+	  	var IPMIRoot = xmldoc.documentElement;	  	
+	  	var SNMPinfo = IPMIRoot.getElementsByTagName('SNMP_INFO');
+
+		if(parseInt(SNMPinfo[0].getAttribute("SNMP_EN"), 10))
+		{
+			SNMPSw.checked = true;
+			SNMPSwEnable();
+		}
+		else
+		{
+			SNMPSw.checked = false;
+			SNMPSwDisable();
+		}
+
+		if(parseInt(SNMPinfo[0].getAttribute("SNMP_VER"), 10))	// SNMPV3
+		{
+			SNMPV3.checked = true;
+			SNMPUserName.value = SNMPinfo[0].getAttribute("SNMP_USERNAME");
+
+			if(parseInt(SNMPinfo[0].getAttribute("SNMP_AUTHPROT"), 10))	// SHA1
+				SNMPAuthSHA1.checked = true;
+			else	// MD5
+				SNMPAuthMD5.checked = true;
+
+			if(parseInt(SNMPinfo[0].getAttribute("SNMP_PRIVPROT"), 10))	// AES
+				SNMPPrivAES.checked = true;
+			else	// DES
+				SNMPPrivDES.checked = true;
+		}
+		else	// SNMPV2c
+		{
+			SNMPV2.checked = true;
+			SNMPROComm.value = SNMPinfo[0].getAttribute("SNMP_ROCOMM");
+			SNMPRWComm.value = SNMPinfo[0].getAttribute("SNMP_RWCOMM");
+		}
+
+		SNMPSwclick();
+	}	
+}
+
+function SNMPSwclick()
+{
+	if(SNMPSw.checked == true)
+		SNMPSwEnable();
+	else
+		SNMPSwDisable();
+}
+
+function SNMPV2Disable()
+{
+	SNMPROComm.disabled  = true;
+	SNMPRWComm.disabled  = true;
+}
+
+function SNMPV3Disable()
+{
+	SNMPUserName.disabled = true;
+	SNMPAuthMD5.disabled = true;
+	SNMPAuthSHA1.disabled = true;
+	SNMPPrivDES.disabled = true;
+	SNMPPrivAES.disabled = true;
+	SNMPAuthKey.disabled = true;
+	SNMPPrivKey.disabled = true;
+}
+
+function SNMPSwDisable()
+{
+	SNMPV2.disabled = true;
+	SNMPV3.disabled = true;
+	SNMPV2Disable();
+  	SNMPV3Disable();
+}
+
+function SNMPV2Enable()
+{
+	SNMPROComm.disabled  = false;
+	SNMPRWComm.disabled  = false;
+}
+
+function SNMPV3Enable()
+{
+	SNMPUserName.disabled = false;
+	SNMPAuthMD5.disabled = false;
+	SNMPAuthSHA1.disabled = false;
+	SNMPPrivDES.disabled = false;
+	SNMPPrivAES.disabled = false;
+	SNMPAuthKey.disabled = false;
+	SNMPPrivKey.disabled = false;
+}
+
+function SNMPV2Clicked()
+{
+	SNMPV2Enable();
+	SNMPV3Disable();
+}
+
+function SNMPV3Clicked()
+{
+	SNMPV3Enable();
+	SNMPV2Disable();
+}
+
+function SNMPSwEnable()
+{
+	SNMPV2.disabled  = false;
+	SNMPV3.disabled  = false;
+	SNMPV2.onclick = SNMPV2Clicked;
+	SNMPV3.onclick = SNMPV3Clicked;
+
+	if(SNMPV2.checked == true)
+	{
+		SNMPV2Clicked();
+	}
+
+	if(SNMPV3.checked == true)
+	{
+		SNMPV3Clicked();
+	}
+}
+
+function verifyV2config()
+{
+    var warn_str = '';
+
+    if(SNMPROComm.value.trim()=='')
+        warn_str += '- ' + lang.LANG_CONF_SNMP_ROCOMM + '\n';
+
+    if(SNMPRWComm.value.trim()=='')
+        warn_str += '- ' + lang.LANG_CONF_SNMP_RWCOMM + '\n';
+
+    if(warn_str != '')
+    {
+        warn_str = lang.LANG_CONF_SNMP_BLANK_WARNING + '\n' + warn_str;
+        alert(warn_str);
+        return 1;
+    }
+    
+    return 0;
+}
+
+function verifyV3config()
+{
+    var warn_str = '';
+    var authk_val = SNMPAuthKey.value.trim();
+    var privk_val = SNMPPrivKey.value.trim();
+
+    if(SNMPUserName.value.trim()=="")
+    {
+        alert(lang.LANG_CONF_SNMP_NONAME_WARNING);
+        return 1;
+    }
+    if(authk_val.length != 0 || prik_val.length != 0)
+    {
+        if( (authk_val.length < 8) || (privk_val < 8) )
+        {
+            alert(lang.LANG_CONF_SNMP_STRLENGTH_WARNING);
+            return 1;
+        }
+    }
+
+    if(CheckRestrictedPassword(SNMPAuthKey.value.trim())==false)
+    {
+        warn_str += '- ' + lang.LANG_CONF_SNMP_AUTHKEY + '\n';
+    }
+
+    if(CheckRestrictedPassword(SNMPPrivKey.value.trim())==false)
+    {
+        warn_str += '- ' + lang.LANG_CONF_SNMP_PRIVKEY + '\n';
+    }
+
+    if(warn_str != '')
+    {
+        warn_str = lang.LANG_CONF_SNMP_V3PATTERN_WARNING + '\n' + warn_str;
+        alert(warn_str);
+        return 1;
+    }
+
+    return 0;
+}
+
+function saveSNMPconfig()
+{
+	enSNMP = 'off';
+	snmpVer = 'v2';
+	snmpAuth = 'SHA';
+	snmpPriv = 'DES';
+
+  	if(SNMPSw.checked == true)	// Enable
+		enSNMP = 'on';
+
+	if(SNMPV3.checked == true)
+		snmpVer = 'v3';
+
+	if(SNMPAuthMD5.checked == true)
+		snmpAuth = 'MD5';
+
+	if(SNMPPrivAES.checked == true)
+		snmpPriv = 'AES';
+
+	var url = '/cgi/op.cgi';
+
+	if(SNMPSw.checked == true)
+	{
+		if(SNMPV2.checked == true)		// SNMPV2c
+		{
+            if(verifyV2config() != 0)
+                return;
+
+			var pars = '&op=config_snmp' + 
+				   '&en_snmp=' + enSNMP + 
+				   '&ver_snmp=' + snmpVer +
+				   '&rocommunity=' + SNMPROComm.value +
+				   '&rwcommunity=' + SNMPRWComm.value;
+		}
+		if(SNMPV3.checked == true)		// SNMPV3
+		{
+            if(verifyV3config() != 0)
+                return;
+
+			var pars = '&op=config_snmp' + 
+				   '&en_snmp=' + enSNMP + 
+				   '&ver_snmp=' + snmpVer +
+				   '&user_snmp=' + SNMPUserName.value +
+				   '&authprot=' + snmpAuth +
+				   '&privprot=' + snmpPriv +
+				   '&authkey=' + SNMPAuthKey.value +
+				   '&privkey=' + SNMPPrivKey.value;
+		}
+	}
+	else
+	{
+		var pars = '&op=config_snmp' + 
+			   '&en_snmp=' + enSNMP;  
+	} 
+		
+	var myAjax = new Ajax.Request(
+                 url,
+                 {method: 'post', parameters:pars, onComplete: saveresult}//reigister callback function
+                 );
+}
+
+function saveresult(originalRequest)
+{
+	if (originalRequest.readyState == 4 && originalRequest.status == 200)
+	{
+		alert(lang.LANG_CONF_SNMP_SUCCSAVE);
+		SNMPReading();
+	}
+  	else
+		alert(lang.LANG_COMMON_UNSAVE);
+}
+
+</script>
+  <!-- SNMP javascript end -->
+</head>
+
+<body onload="PageInit()">
+<span class="LoadingStyle" id="loading"></span>
+<table border="0" cellpadding="0" cellspacing="0" style="width: 100%">
+        <tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td><td><div class="mtitle"><script>document.writeln(lang.LANG_CONF_SNMP_CAPTION)</script></div></td></tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr>
+	    <td></td>
+            <td>
+		<table class="boxSection"><tr><td><div class="textA"><script>document.writeln(lang.LANG_CONF_SNMP_DESC)</script></div></td><tr></table>
+            </td>
+        </tr>
+        <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+        <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+        <tr>
+		<td><br></td>
+		<td>
+			<table border="0" width="100%" id="table1">
+			<tr>
+				<td>&nbsp;<label><input type="checkbox" onclick="SNMPSwclick()" id="SWITCHSNMP" $(TAG_DISABLE)/>
+				<span class="labelhead"><script>document.writeln(lang.LANG_CONF_SNMP_EN)</script></label></span></td>
+			</tr>
+			</table>
+			<table border="0" id="table2">
+			<tr>
+				<td class="labelhead">
+					<script>document.writeln(lang.LANG_CONF_SNMP_VERSION);</script>
+				</td>
+				<td colspan="2" class="labelhead">
+					<input type="radio" name="opt_snmp" id="SNMP_V2" $(TAG_DISABLE)/>
+					<script>document.writeln(lang.LANG_CONF_SNMP_V2);</script>
+					<input type="radio" name="opt_snmp" id="SNMP_V3" $(TAG_DISABLE)/>
+					<script>document.writeln(lang.LANG_CONF_SNMP_V3);</script>
+				</td>
+			</tr>
+			<tr><td>&nbsp;</td></tr>
+			<tr>
+				<td class="labelhead">
+					<script>document.writeln(lang.LANG_CONF_SNMP_V2);</script>
+				</td>
+			</tr>
+			<tr>
+				<td>&nbsp;&nbsp;<span class="labelhead"><script>document.writeln(lang.LANG_CONF_SNMP_ROCOMM)</script></span></td>
+				<td width="393">&nbsp;<input type="password" maxlength="64" id="SNMP_ROComm" $(TAG_DISABLE) onBlur='CheckInputValue(this)' /></td>
+			</tr>
+			<tr>
+				<td>&nbsp;&nbsp;<span class="labelhead"><script>document.writeln(lang.LANG_CONF_SNMP_RWCOMM)</script></span></td>
+				<td width="393">&nbsp;<input type="password" maxlength="64" id="SNMP_RWComm" $(TAG_DISABLE) onBlur='CheckInputValue(this)' /></td>
+			</tr>
+			<tr><td>&nbsp;</td></tr>
+			<tr>
+				<td class="labelhead">
+					<script>document.writeln(lang.LANG_CONF_SNMP_V3);</script>
+				</td>
+			</tr>
+			<tr>
+				<td>&nbsp;&nbsp;<span class="labelhead"><script>document.writeln(lang.LANG_CONF_SNMP_USERNAME)</script></span></td>
+				<td width="393">&nbsp;<input type="text" maxlength="32" id="SNMP_UserName" $(TAG_DISABLE) onBlur='CheckInputValue(this)' /></td>
+			</tr>
+			<tr>
+				<td class="labelhead">
+					<script>document.writeln(lang.LANG_CONF_SNMP_AUTHPROT);</script>
+				</td>
+				<td colspan="2" class="labelhead">&nbsp;&nbsp;
+					<input type="radio" name="opt_auth" id="SNMP_md5" $(TAG_DISABLE)/>
+					<script>document.writeln(lang.LANG_CONF_SNMP_AUTHMD5);</script>
+					<input type="radio" name="opt_auth" id="SNMP_sha1" $(TAG_DISABLE)/>
+					<script>document.writeln(lang.LANG_CONF_SNMP_AUTHSHA1);</script>
+				</td>
+			</tr>
+			<tr>
+				<td class="labelhead">
+					<script>document.writeln(lang.LANG_CONF_SNMP_PRIVPROT);</script>
+				</td>
+				<td colspan="2" class="labelhead">&nbsp;&nbsp;
+					<input type="radio" name="opt_priv" id="SNMP_des" $(TAG_DISABLE)/>
+					<script>document.writeln(lang.LANG_CONF_SNMP_PRIVDES);</script>
+					<input type="radio" name="opt_priv" id="SNMP_aes" $(TAG_DISABLE)/>
+					<script>document.writeln(lang.LANG_CONF_SNMP_PRIVAES);</script>
+				</td>
+			</tr>
+			<tr>
+				<td>&nbsp;&nbsp;<span class="labelhead"><script>document.writeln(lang.LANG_CONF_SNMP_AUTHKEY)</script></span></td>
+				<td width="393">&nbsp;<input type="password" maxlength="64" id="SNMP_AuthKey" $(TAG_DISABLE) onBlur='CheckInputValue(this)' /></td>
+			</tr>
+			<tr>
+				<td>&nbsp;&nbsp;<span class="labelhead"><script>document.writeln(lang.LANG_CONF_SNMP_PRIVKEY)</script></span></td>
+				<td width="393">&nbsp;<input type="password" maxlength="64" id="SNMP_PrivKey" $(TAG_DISABLE) onBlur='CheckInputValue(this)' /></td>
+			</tr>
+		</table>
+		</td>
+	</tr>
+
+        <tr>
+		<td height="53"></td>
+		<td height="53">
+		<!-- below area is needed to modify by yourself -->
+        	  
+		<br>
+		<input type="button" class="btnStyle" onclick="saveSNMPconfig()" id="ButtonSave" $(TAG_DISABLE)/>
+		<!-- end of this area -->
+		</td>
+	</tr>
+</table>
+</body>
+</html>

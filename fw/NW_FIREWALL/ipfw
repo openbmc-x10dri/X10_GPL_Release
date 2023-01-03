@@ -1,0 +1,24 @@
+#!/bin/sh
+
+CONFIG=/nv/ipctrl/rultbl.sav
+start_ipfw()
+{
+	if [ -f $CONFIG ] ;then
+		/sbin/iptables-restore < $CONFIG;
+	fi
+	echo "0">/proc/sys/net/ipv4/tcp_timestamps
+	iptables -A INPUT -p icmp --icmp-type timestamp-request -j DROP
+	iptables -A OUTPUT -p icmp --icmp-type timestamp-reply -j DROP
+}
+
+case $1 in 
+    start)
+	start_ipfw
+    ;;
+    stop)
+    ;;
+    restart)
+    ;;
+    *)
+    ;;
+esac

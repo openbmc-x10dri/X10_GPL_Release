@@ -1,0 +1,20 @@
+
+#if 0
+#define _MULTI_LANGUAGE_Table_
+
+#include "../../inc/ipmi.h"
+
+
+St_HTMLCONTENT_STRING_TABLE HtmlContentInfoTable[][Total_HTML_CONTENT_NUMBER] = {
+	{
+	HTML_CONTENT_INFO_TABLE_TAIL,}
+	, {
+	HTML_CONTENT_INFO_TABLE_TAIL,}
+	, {
+	HTML_CONTENT_INFO_TABLE_TAIL,}
+,};
+
+St_HTMLPAGE_MULTILANGUAGE_STRING_TAG HtmlLanguageInfoTable[] = {
+	HTML_LANGUAGE_INFO_TABLE_TAIL
+};
+#endif

@@ -1,0 +1,57 @@
+--- /drivers/net/ftgmac100_26.c	2011-02-21 19:02:02.000000000 +0800
++++ /drivers/net/ftgmac100_26.c	2011-03-09 13:22:16.000000000 +0800
+@@ -199,6 +199,12 @@
+ static struct net_device_stats * ftgmac100_query_statistics( struct net_device *dev);
+ 
+ /*
++ . This routine allows to set MAC address
++ . 03/03/2011 - by eric@aten
++*/
++static int ftgmac100_set_mac_address(struct net_device *dev, void *p);
++
++/*
+  . Finally, a call to set promiscuous mode ( for TCPDUMP and related
+  . programs ) and multicast modes.
+ */
+@@ -2130,6 +2136,7 @@
+ 	dev->hard_start_xmit    = ftgmac100_wait_to_send_packet;
+ 	dev->tx_timeout			= ftgmac100_timeout;
+ 	dev->get_stats			= ftgmac100_query_statistics;
++	dev->set_mac_address	= ftgmac100_set_mac_address;
+ #ifdef	HAVE_MULTICAST
+ 	dev->set_multicast_list = &ftgmac100_set_multicast_list;
+ #endif
+@@ -2798,6 +2805,19 @@
+ 	return &lp->stats;
+ }
+ 
++static int ftgmac100_set_mac_address(struct net_device *dev, void *p)
++{
++	struct sockaddr *sa = (struct sockaddr *)p;
++	unsigned long ioaddr = dev->base_addr;
++
++	if (!is_valid_ether_addr(sa->sa_data)) 
++		return -EADDRNOTAVAIL;
++	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
++
++	put_mac(ioaddr + MAC_MADR_REG, (char *)sa->sa_data);
++	return 0;
++}
++
+ 
+ 
+ #ifdef HAVE_MULTICAST
+@@ -2988,10 +3008,11 @@
+                 /* Copy the parameters from the platform specification */
+                 dev->base_addr = IP_va_base[id];
+                 dev->irq = IP_irq[id];
+-
++#if 0
++// 03/03/2011 - by eric@aten
+                 /* Setup initial mac address */
+                 auto_get_mac(id, dev->dev_addr);
+-
++#endif
+                 dev->init = ftgmac100_probe;
+                 if ((thisresult = register_netdev(dev)) != 0) {
+ 			if (thisresult != 0) {

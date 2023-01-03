@@ -1,0 +1,45 @@
+#!/bin/sh
+
+source /etc/scripts/service
+
+STUNNEL_SRC_CONF="/etc/stunnel/stunnel.conf"
+STUNNEL_CONF="/nv/stunnel.conf"
+
+load_default()
+{
+	cp $STUNNEL_SRC_CONF $STUNNEL_CONF
+}
+
+start_stunnel()
+{
+	if [ "$STUNNEL_SERVICE" == "0" ] || [ -z $STUNNEL_SERVICE ];then
+		return;
+	fi
+	if [ ! -f $STUNNEL_CONF ];then
+		load_default
+	fi
+	
+	echo "Starting STUNNEL ....."
+
+    stunnel $STUNNEL_CONF
+}
+
+stop_stunnel()
+{
+    killall -9 stunnel
+}
+
+case $1 in 
+    start)
+	start_stunnel
+    ;;
+    stop)
+	stop_stunnel && echo "Stop STUNNEL daemon .............."
+    ;;
+    restart)
+	stop_stunnel
+	start_stunnel
+    ;;
+    *)
+    ;;
+esac

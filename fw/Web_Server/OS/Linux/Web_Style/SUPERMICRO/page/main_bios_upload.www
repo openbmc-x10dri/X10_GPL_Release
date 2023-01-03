@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+    <META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+    <META NAME="Super Micro Computer, Inc." CONTENT="(c) Super Micro Computer, Inc. 2014">
+    <title></title>
+    <!-- Page-specific styles -->
+    <link rel="stylesheet" href="../css/basic.css" type="text/css">
+    <!-- Dependency source files -->
+    <script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script>
+    <script language="javascript" src="../js/utils.js"></script>
+    <script type="text/javascript">
+        /*
+        global variables
+        */
+        var mainPage = "../cgi/url_redirect.cgi?url_name=maintenance";
+        function PageInit() {
+            document.getElementById("bios_key_caption").innerHTML = lang.LANG_BIOS_UPLOAD_CAPTION;
+            document.getElementById("bios_key_desc").innerHTML    = lang.LANG_BIOS_UPLOAD_DESC;
+            BtnUpload          = document.getElementById("btn_upload");
+            BtnUpload.value    = lang.LANG_BIOS_UPLOAD_BTN;
+            BtnCancel          = document.getElementById("btn_cancel");
+            BtnCancel.value    = lang.LANG_BIOS_UPLOAD_CANCEL;    
+            FileUploaded       = document.getElementById("file_upload");
+            $(TAG_ALERT)
+            $(TAG_MAINPAGE)
+			$(TAG_LICENSE)
+        }
+        function PostCallback(originalRequest) {
+            if ((originalRequest.readyState == 4) && (originalRequest.status == 200)) {
+				Loading(false);
+                var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+                var xmldoc=GetResponseXML(response);
+                if(xmldoc == null) {
+                    SessionTimeout();
+                    return;
+                }
+                var root=xmldoc.documentElement;
+                var status_elm=root.getElementsByTagName("MISC_INFO");
+                var res=status_elm[0].getAttribute("RES");
+                if(res == '0') {
+                    alert(lang.LANG_UPGARDING_IS_IN_PROGRESS);
+                    var upgradePage = "../cgi/url_redirect.cgi?url_name=main_bios_update";
+                    location.href = upgradePage;
+                }
+            }
+        }
+        function license_activated() {
+            BtnUpload.onclick	= checkFile;
+            BtnCancel.onclick	= doCancel;
+            document.getElementById("upload_block").style.display="";
+			if ($(TAG_ADMIN_ACTION)) {
+				Loading(true);
+				var url = '/cgi/ipmi.cgi';
+				var pars = 'BIOS_UPDATE_MISC.XML=(0,0)&time_stamp='+(new Date());
+				var myAjax = new Ajax.Request(
+						url,
+						{method: 'post',parameters:pars, onComplete:PostCallback}
+						);
+			}
+        }
+        function license_unactivated() {
+			var style = 'color:#0000FF;text-decoration:underline;cursor:pointer';
+			var msg = document.getElementById("license_status");
+			var span = document.createElement("span");
+			span.innerHTML = lang.LANG_BIOS_LICENSE_NOTACTIVATED+'&nbsp;';
+			msg.appendChild(span);
+			span = document.createElement("span");
+			span.innerHTML = lang.LANG_BIOS_ACTIVATE_LICENSE;
+			span.style.cssText = style;
+			span.onclick = function () {
+				window.parent.page_mapping('miscellaneous','misc_license');
+			}
+			msg.appendChild(span);
+        }
+        function checkFile()
+        {    
+            
+            var file_name = FileUploaded.value;
+            if(file_name.length == 0)
+            {
+                alert(lang.LANG_BIOS_UPLOAD_ERR1);
+                return;
+            }
+//            var file_subname = file_name.substr(file_name.lastIndexOf(".")+1, file_name.length);
+//            if(file_subname != 'ROM' && file_subname != 'rom'  && file_subname != 'BIN'  && file_subname != 'bin')
+//            {
+//               alert(lang.LANG_BIOS_UPLOAD_ERR2);
+//               return;
+//            }
+
+            BtnUpload.disabled = true;
+            //allow only one user to do f/w update
+            //we check whether another user is updating now
+            //if not lock the usage
+            var url = '/cgi/ipmi.cgi';
+            var pars = 'BIOS_UPLOAD.XML=(0,0)&time_stamp='+(new Date());
+            var myAjax = new Ajax.Request(
+                         url,
+                         {method: 'post',parameters:pars, onComplete: LockUploadBIOS}//reigister callback function
+                         );
+        }
+        function LockUploadBIOS(originalRequest)
+        {
+            if (originalRequest.readyState == 4 && originalRequest.status == 200){
+                var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+                var xmldoc=GetResponseXML(response);
+                if(xmldoc == null)
+                {
+                    SessionTimeout();
+                    return;
+                }
+                var root=xmldoc.documentElement;
+                var status_elm=root.getElementsByTagName("LOCK_FW_UPLOAD");
+                var res=status_elm[0].getAttribute("RES");
+                if(res == '1')
+                {
+					var url = '/cgi/ipmi.cgi';
+					var pars = 'BIOS_UPDATE_START.XML=(1,0)&time_stamp='+(new Date());
+					var myAjax = new Ajax.Request(url, {method: 'post',parameters:pars});
+
+                    document.getElementById("upload_status").innerHTML = lang.LANG_BIOS_UPLOAD_STATUS;
+                    Loading(true);
+                    BtnCancel.disabled = true;
+                    FileUploaded.form.submit();
+                }    
+                else
+                {
+                    alert(lang.LANG_BIOS_UPLOAD_OCCUPIED);
+                    location.href = mainPage;
+                }
+            }
+        }
+        function doCancel()
+        {
+            if(confirm(lang.LANG_BIOS_UPLOAD_CONFIRM))
+            {
+                location.href = mainPage;
+            }
+        }
+    </script>
+</head>
+<body onload= 'PageInit()'>
+    <span class="LoadingStyle" id="loading"></span>
+    <table border="0" cellpadding="0" cellspacing="0" class="mtable" style="width: 100%">
+        <tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td>
+            <td><div class="mtitle"><span id="bios_key_caption"></div></td>
+        </tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr>
+            <td></td>
+            <td colspan="3">
+                <table class="boxSection"><tr><td><div class="textA">
+                    <span id="bios_key_desc">
+                </div></td><tr></table>
+            </td>
+        </tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr><td></td>
+            <td>
+            <!-- below area is needed to modify by yourself --> 
+            <table border="0">
+                <tr>
+                    <td><div class="labelhead" id="license_status"></div></td>
+                </tr>
+            </table>   
+            <span id="upload_block" style="display:none;">            
+            <span class ="label" id="upload_status"></span> 
+            <form name="form1" action="/cgi/bios_upload.cgi" method="post" enctype="multipart/form-data"> 
+                <span class="labeltext" style="margin: 0px; padding: 0px;"><script>document.writeln(lang.LANG_BIOS_UPLOAD_SELECT_FILE);</script></span>
+                <br>
+                <input type="file" name="form1" id="file_upload" $(TAG_DISABLE)>                 
+                <br>
+                <p>
+                <input type="button" class="btnStyle" id="btn_upload" $(TAG_DISABLE)>
+                <input type="button" class="btnStyle" id="btn_cancel" $(TAG_DISABLE)>
+                </p>
+                </span>    
+            </form>
+            <br>
+            <!-- end of this area -->
+            </td>
+        <tr>
+    </table>
+</body>
+</html>

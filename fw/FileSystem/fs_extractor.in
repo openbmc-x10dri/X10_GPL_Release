@@ -1,0 +1,19 @@
+-include $(PRJ_PATH)/.SDKPath
+
+DTKFS_PATH = $(DTKPATH)/FileSystem
+DTKTC_PATH = $(DTKPATH)/ToolChain
+
+export DTKFS_PATH DTKTC_PATH
+
+extract:
+	$(Q)echo "******************** Extract File System ********************"
+	$(Q)if [ ! -d $(DTKFS_PATH) ];then mkdir -p $(DTKFS_PATH)/Host/$(MYMCU)/Board/$(BOARD); fi	
+	$(Q) cp -f ./Host/$(MYMCU)/*.tar.gz $(DTKFS_PATH)/Host/$(MYMCU)/
+	$(Q) cp -af ./Host/$(MYMCU)/Board/$(BOARD) $(DTKFS_PATH)/Host/$(MYMCU)/Board/
+	$(Q) cp -f ./Makefile $(DTKFS_PATH)/
+	$(Q) echo "" > $(DTKFS_PATH)/fs_extractor.in
+	$(Q)if [ ! -d $(DTKTC_PATH) ];then mkdir -p $(DTKTC_PATH)/Host/$(MYMCU); fi
+	$(Q)cp -a $(PRJ_PATH)/ToolChain/Host/$(MYMCU)/*.tar.gz $(DTKTC_PATH)/Host/$(MYMCU)/
+	for i in $(FS_ELEMENT_DIR); do (cd $$i; make extract); done
+	for i in $(BB_ELEMENT_DIR); do (cd $$i; make extract); done
+

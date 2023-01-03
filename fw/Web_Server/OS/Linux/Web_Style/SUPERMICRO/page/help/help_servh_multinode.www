@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+    <META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+    <title>Help Page</title>
+	<link rel="stylesheet" href="../../css/help.css" type="text/css">
+    <script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script> <!-- temporarily used -->
+</head>
+
+<script language="javascript" src="../../js/utils.js"></script> 
+<script type="text/javascript">
+	function PageInit()
+	{
+		/* Help page */
+	}
+	
+</script>
+
+
+<body onload="PageInit()">
+	<table border="0" cellpadding="0" cellspacing="0">
+        <td><div class="mtitle"><script>document.writeln(lang.LANG_TOPMENU_HELP)</script>: <script>document.writeln(lang.LANG_SERVER_HEALTH_MULTINODE)</script></div></td>
+    </table>
+
+	<table class="boxSection">
+		<td>
+			<ol class="subdesc">
+			<li><script>document.writeln(lang.LANG_SERVER_HEALTH_MULTINODE_HELP_1)</script></li>
+			<li><script>document.writeln(lang.LANG_SERVER_HEALTH_MULTINODE_HELP_2)</script></li>
+			</ol>
+		</td>
+	</table>
+
+</body>
+</html>

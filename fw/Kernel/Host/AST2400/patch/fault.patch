@@ -1,0 +1,21 @@
+--- /arch/arm/mm/fault.c	2010-11-25 23:56:55.000000000 +0800
++++ /arch/arm/mm/fault.c	2010-11-25 23:59:08.000000000 +0800
+@@ -22,6 +22,8 @@
+ 
+ #include "fault.h"
+ 
++void (*faultcallback)(void) = 0;
++EXPORT_SYMBOL(faultcallback);
+ 
+ #ifdef CONFIG_KPROBES
+ static inline int notify_page_fault(struct pt_regs *regs, unsigned int fsr)
+@@ -109,6 +111,9 @@
+ 	if (fixup_exception(regs))
+ 		return;
+ 
++	if (faultcallback)
++		faultcallback();
++
+ 	/*
+ 	 * No handler, we'll have to terminate things with extreme prejudice.
+ 	 */

@@ -1,0 +1,1039 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
+<head>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+    <META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+	<title></title>
+	<link rel="stylesheet" href="../css/basic.css" type="text/css">
+	<link rel="stylesheet" href="../css/bootstrap.min.css" type="text/css">
+    <script type="text/javascript" src="../js/jquery-1.11.0.min.js"></script> 
+    <script type="text/javascript" src="../js/bootstrap.min.js"></script>
+	<script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script> 
+    <script language="javascript" src="../js/utils.js"></script> 
+<style type="text/css">  
+.tbl { 
+  	border:0; 
+  	border-collpase:collpase; 
+  	width: 400px
+} 
+.table_th { 
+ 	background-color:#F2F6FF;
+	font-weight:bold;
+	cursor:default;
+   	height:1.6em;
+	font-size :12px; 
+	text-align:left;	 
+	font-family: Arial, Verdana, Geneva,  Helvetica, sans-serif;
+}
+
+.table_tr { 
+   	border-bottom: 1px solid #ccc;
+   	background:transparent;
+   	cursor:default;
+   	height:1.6em;
+   	font-size :12px;
+	font-family: Arial, Verdana, Geneva,  Helvetica, sans-serif;
+} 
+.table_td
+{
+	border-bottom: 1px solid #ccc;
+  	background:transparent;
+  	cursor:default;
+  	height:1.6em;
+  	font-size :12px;	
+	font-family: Arial, Verdana, Geneva,  Helvetica, sans-serif;
+}
+.last_tr
+{
+	text-align:right;	
+	border-bottom: none;
+	font-size :10px;
+	font-family: Arial, Verdana, Geneva,  Helvetica, sans-serif;
+}
+
+.spinner_bt {
+    margin-bottom: 10px;
+}
+
+</style>
+
+<script type="text/javascript">
+
+var $jq = jQuery.noConflict();
+var honrizon_num 		= 1;
+var vertical_num 		= 10;
+
+var PCIESSD_dev    	    = new Array();
+var max_pcie_aoc        = 2;
+var max_pcie_ssd 	    = 10;
+var current_aoc_no = 0;
+var current_slot_no = 0;
+var PCIe_present		= 0;
+var CPLD_FW_Version="N/A";
+var REFRESH_ONCE=1;
+
+var pollSSDeject_interval;
+var getpcieinfo_interval;
+var bgcount=0;
+var cancel_req=0;
+var inject_req=0;
+var button_blinking_interval;
+var prev_presentBitmap=-1;
+var devPresentBitmap=0;
+var devSaveToRemoveBitmap=0;
+var device_gen = 0;
+
+
+var browser_ie = (((navigator.userAgent.indexOf('MSIE') >= 0) && (navigator.userAgent.indexOf('Opera') < 0))?true:false);
+var mainPage 	= "../cgi/url_redirect.cgi?url_name=health";
+var gLangEjectConfirm = "WARNING: Eject will erase ALL in progress data on your disk drive.\nTo Eject the disk, click OK. To quit, click CANCEL."
+
+
+$jq(document).ready( function() { 
+    SetEmptyButtonLayout();
+    $jq("#btnInject").hide();
+    
+    $jq("#myModal").modal('hide');
+    
+    $jq("#ssd_slot_select").change( function() {
+
+        if( slot_no.selectedIndex >= 0 )
+        {
+            if( (devPresentBitmap& (1<<slot_no.selectedIndex) )
+                && (devSaveToRemoveBitmap & (1<<slot_no.selectedIndex) )                
+            )
+            {
+                // console.log("Ok to inject");
+                SetInjectButtonLayout();
+            }                       
+            else
+            {
+                if( (devPresentBitmap& (1<<slot_no.selectedIndex) )
+                 && ((devSaveToRemoveBitmap & (1<<slot_no.selectedIndex)) == 0) )                
+                 {
+                    // console.log("Ok to Eject");
+                    SetEjectButtonLayout();
+                 }
+                 else
+                 {
+                     // console.log("No card Present");
+                     SetEmptyButtonLayout();
+                 }                     
+            }
+        }
+        else
+            SetActionButtonDisabled();
+    });
+});
+    
+function ShowStatusColor(dev_obj,dev_num)
+{
+	var tbl  = document.createElement("table");
+	var tbody  = document.createElement('tbody');
+	tbl.appendChild(tbody);
+	var row  = document.createElement("tr");
+	var cell  = document.createElement("td");
+	tbl.setAttribute('width',"20");
+	tbl.setAttribute('height',"20");
+	//tbl.setAttribute('border',"1");
+	if (isSSDExisted(dev_obj,dev_num)) {
+		switch(isPCIESSDErr(dev_obj,dev_num)) {
+			case 0:
+			cell.style.cssText = 'background-color:green';
+			break;
+			case 3:
+			cell.style.cssText = 'background-color:yellow';
+			break;
+			default:
+			cell.style.cssText = 'background-color:red';
+			break;
+		}		
+	} else {
+		cell.style.cssText = 'background-color:F2F6FF';
+	}
+	row.appendChild(cell);
+	tbody.appendChild(row);
+	return tbl;
+}
+
+function add_row(dev_obj,tbl_obj,attr,content,value)
+{
+	var row,row1;   
+	var cell,cell;
+	var textNode;
+	
+	var dev_num = tbl_obj.id;
+	row  = document.createElement("tr");
+	if (attr.indexOf("th") != -1) {	
+		cell = document.createElement("th");
+		cell.style.cssText = 'width:200px';
+		cell.className = "table_th";
+		cell.appendChild(ShowStatusColor(dev_obj,dev_num));
+		row.appendChild(cell);
+				
+		cell  = document.createElement("th");
+		cell.setAttribute('colSpan',"2");
+		//cell.setAttribute('width',"95%");
+		cell.className = "table_th";
+		textNode = document.createTextNode(content);
+		cell.appendChild(textNode);
+		row.appendChild(cell);
+	} else {
+		cell = document.createElement(attr);
+		cell.setAttribute('colSpan',"2");
+		cell.className = "table_td";
+		cell.style.cssText = 'width:120px';
+		textNode = document.createTextNode(content);
+		cell.appendChild(textNode);
+		row.appendChild(cell);
+	
+		cell  = document.createElement(attr);
+		cell.className = "table_td";
+		textNode = document.createTextNode(value);
+		cell.appendChild(textNode);
+		row.appendChild(cell);
+	}
+	return row;
+}
+
+function create_table(table_id)
+{
+	var table=document.createElement('table');
+	table.setAttribute('id',table_id);
+	table.className = "tbl";
+	//table.setAttribute('border',"1");
+	table.style.cssText = 'border-collapse:collapse';
+	return table;
+}
+
+function UpdatePCIESSDinfo()
+{
+    clearTimeout(getpcieinfo_interval);
+    GetPCIESSDInfo();
+}
+
+
+function GetPCIESSDInfo()
+{
+	var url = '/cgi/ipmi.cgi';
+	var pars = 'Get_PCIESSDInfo.XML=(0,0) & time_stamp='+(new Date()) ; //(0,0) ask for privilege
+	var myAjax = new Ajax.Request(
+	    url,
+	    {method: 'post',parameters:pars, onComplete: GetPCIESSDInfoResp}//reigister callback function
+	    );
+}
+
+//-- Max Link Speed ---
+//		1 : 2.5GT/s 
+//		2 : 5.0GT/s	
+//		3 : 8.0GT/s 
+
+function GetLinkSpeed(val)
+{
+	if (val == 3)
+		return "8.0 GT/s";	
+	else if(val == 2)
+		return "5.0 GT/s";
+	else if(val == 1)
+		return "2.5 GT/s";
+	else
+		return "N/A";
+}
+
+function GetLinkWidth(val)
+{
+	switch(val)
+	{
+		case 1:
+			return "1";
+		case 2:
+			return "2";
+		case 4:
+			return "4";
+		case 8:
+			return "8";
+		default:
+			return "N/A";	
+	}
+}
+
+function GetStatus(val)
+{
+	switch (val)
+	{
+		case 0:
+			return "Not Present"
+		case 1: 
+			return "Present";
+		case 2:
+			return "Rebuilding";
+		case 3:
+			return "Predicted Failure";
+		case 4:
+			return "Drive Failed";
+	}
+}
+
+function GetLocateStatus(val)
+{
+	switch (val)
+	{
+		case 0:
+			return "No"
+		case 1: 
+			return "Yes";
+	}
+}
+
+function GetPCIESSDInfoResp(originalRequest)
+{
+
+	if (originalRequest.readyState == 4 && originalRequest.status == 200)
+	{
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var xmldoc = GetResponseXML(response);
+		if(xmldoc == null)
+		{
+			SessionTimeout();
+			return;
+		}
+		var slot_no_image = slot_no.selectedIndex; 
+		var Root;
+		var SSDInfoNode;
+		var SSDNode;
+
+		Root		          = xmldoc.documentElement;
+   		SSDInfoNode	          = Root.getElementsByTagName("SSDInfo");
+		SSDNode		          = SSDInfoNode[current_aoc_no].getElementsByTagName('SSD');
+ 		max_pcie_ssd	      = SSDNode.length;
+		devPresentBitmap      = parseInt( SSDInfoNode[current_aoc_no].getAttribute("PresentBitmap"),16);
+		devSaveToRemoveBitmap = parseInt( SSDInfoNode[current_aoc_no].getAttribute("SaveToRemoveBitmap"),16);
+        max_pcie_aoc	      = parseInt(SSDInfoNode[current_aoc_no].getAttribute('AOC_Num'), 16);
+		max_pcie_ssd          = parseInt(SSDInfoNode[current_aoc_no].getAttribute('MaxSlotNum'), 16);
+
+
+		if(max_pcie_ssd >= 10)
+			max_pcie_ssd = 10;
+        
+		// No selection is made
+		if( current_aoc_no < 0 ) 
+			CPLD_FW_Version = "N/A";
+		else               
+			CPLD_FW_Version = SSDInfoNode[current_aoc_no].getAttribute("FwVerDate");
+
+		if(device_gen == 0)
+		{
+			for(i=0; i < max_pcie_aoc; i++)
+			{
+				tmp_opt_obj = new Option("Device:"+i, i);
+				aoc_no.add(tmp_opt_obj, i);
+			}
+			device_gen = 1;
+		}
+
+ 		for (i = 0 ; i < max_pcie_ssd ;i++ )
+		{ 
+			if(GetStatus(parseInt( SSDNode[i].getAttribute("Status"),16)) == "Not Present")
+			{
+				//
+                		//Determine which slot could have Inject ability
+                		//
+                		if( (devPresentBitmap& (1<<i)) && (devSaveToRemoveBitmap & (1<<i)) )
+                		{
+                    			slot_no.options[i].disabled = false;
+                    			slot_no.options[i].selected = true;              
+                		}
+                		else // gray out the slot
+                		{
+                    			slot_no.options[i].disabled = true;
+                    			slot_no.options[i].selected = false;              
+                		}                    
+                
+                		PCIESSD_dev[i]      = new Array(); 
+                		PCIESSD_dev[i][0]   = "N/A" ;
+                		PCIESSD_dev[i][1]   = "N/A" ;
+                		PCIESSD_dev[i][2]   = "N/A" ;
+                		PCIESSD_dev[i][3]   = "N/A" ;
+                		PCIESSD_dev[i][4]   = "N/A" ;
+                		PCIESSD_dev[i][5]   = "N/A" ;
+                		PCIESSD_dev[i][6]   = "N/A" ;
+                		PCIESSD_dev[i][7]   = "N/A" ;
+                		PCIESSD_dev[i][8]   = "N/A" ;
+                		PCIESSD_dev[i][9]   = "N/A" ;
+                		PCIESSD_dev[i][10]  = "N/A" ;
+                		PCIESSD_dev[i][11]  = "N/A" ;
+			}
+			else
+			{
+				slot_no.options[i].disabled = false;
+
+				PCIESSD_dev[i]      = new Array(); 
+				PCIESSD_dev[i][0]   = GetStatus(parseInt( SSDNode[i].getAttribute("Status"),16));
+                		// NOTE Don't show locate status since the CPLD pin is not readable
+                		// PCIESSD_dev[i][1]   = GetLocateStatus(parseInt(SSDNode[i].getAttribute("LocateStatus"),16));
+                		// 
+                		var temp = parseInt(SSDNode[i].getAttribute("Temperature"),16);
+
+                		if (temp == 0 || temp == 255)
+					PCIESSD_dev[i][1]   = "N/A";
+				else 
+					PCIESSD_dev[i][1]   = parseInt(SSDNode[i].getAttribute("Temperature"),16)+ " degrees C"; 
+
+				PCIESSD_dev[i][2] = SSDNode[i].getAttribute("ClassCode");
+				PCIESSD_dev[i][3] = SSDNode[i].getAttribute("VendorID");
+				PCIESSD_dev[i][4] = SSDNode[i].getAttribute("SerialNum");
+				PCIESSD_dev[i][5] = SSDNode[i].getAttribute("ModelNum");
+				PCIESSD_dev[i][6] = GetLinkSpeed(parseInt(SSDNode[i].getAttribute("Port0MaxLinkSpeed"),16));
+				PCIESSD_dev[i][7] = GetLinkWidth(parseInt(SSDNode[i].getAttribute("Port0MaxLinkWidth"),16));
+				PCIESSD_dev[i][8] = GetLinkSpeed(parseInt(SSDNode[i].getAttribute("Port1MaxLinkSpeed"),16));
+				PCIESSD_dev[i][9] = GetLinkWidth(parseInt(SSDNode[i].getAttribute("Port1MaxLinkWidth"),16));
+				PCIESSD_dev[i][10] = parseInt(SSDNode[i].getAttribute("InitialPwrRequirement"),16) + " Watts";
+				PCIESSD_dev[i][11] = parseInt(SSDNode[i].getAttribute("MaxPowerRequirement"),16) + " Watts";
+
+			}//if(GetStatus(parseInt( SSDNode[i].getAttribute("Status"),16))==1)
+		}
+		slot_no.selectedIndex = slot_no_image;
+        
+		if( max_pcie_ssd == 0 )
+		{
+			$jq("#ssd_slot_select").prop("disabled", true);
+		}
+		else
+		{
+			if( $jq("#ssd_slot_select").prop("disabled") )
+			    $jq("#ssd_slot_select").prop("disabled", false);
+		}
+
+		ShowPCIESSDInfo();       
+        	RefreshButtonGUI();        
+	}
+}
+
+function RefreshButtonGUI()
+{
+    //console.log(new Date() );
+    //console.log("prev_presentBitmap="+ prev_presentBitmap + " devPresentBitmap=" + devPresentBitmap + ", devSaveToRemoveBitmap=" + devSaveToRemoveBitmap);
+    
+    var temp_prev_presentBitmap=prev_presentBitmap;
+    
+    prev_presentBitmap=devPresentBitmap;
+    
+    if( (temp_prev_presentBitmap == 0) && (devPresentBitmap > 0) )
+    {
+        if( devSaveToRemoveBitmap == 0xFFFF )
+        {
+            $jq("#ssd_slot_select").selectedIndex=1;
+            SetEmptyButtonLayout();
+            return;
+        }
+    }    
+    
+    if( devPresentBitmap==0)
+    {
+        $jq("#ssd_slot_select").selectedIndex=1;
+        SetEmptyButtonLayout();
+        return;
+    }    
+    if( slot_no.selectedIndex >= 0 )
+    {
+        if( (devPresentBitmap& (1<<slot_no.selectedIndex) )
+            && (devSaveToRemoveBitmap & (1<<slot_no.selectedIndex) )                
+        )
+        {
+            // console.log("Ok to inject");
+            // When user plug in a drive from none of drive present state
+            // This is avoid Inject button showing up because the devSaveToRemoveBitmap is
+            // not updated earlier than devPresentBitmap
+/*            if( devSaveToRemoveBitmap == 0xFFFF )
+                setTimeout(RefreshButtonGUI, 3*1000);*/
+                
+            SetInjectButtonLayout();
+        }                       
+        else
+        {
+            if( (devPresentBitmap& (1<<slot_no.selectedIndex) )
+                && ((devSaveToRemoveBitmap & (1<<slot_no.selectedIndex)) == 0) )                
+            {
+                // console.log("Ok to Eject");
+                SetEjectButtonLayout();
+            }
+            else
+            {
+                // console.log("No card Present");
+                SetEmptyButtonLayout();
+            }                     
+        }
+    }
+    else
+        SetActionButtonDisabled();
+}
+
+// Buttons: Locate, Stop Locate, Eject, and Inject
+//
+//
+function SetActionButtonDisabled()
+{
+    var en_flag=0;
+    if( slot_no.selectedIndex >= 0 )
+        en_flag=slot_no.options[slot_no.selectedIndex].disabled;
+    else
+        en_flag=true;
+    $jq("#locate_ssd_btn, #dislocate_ssd_btn, #eject_ssd_btn" ).prop("disabled", en_flag);    
+}
+
+function SetInjectButtonLayout()
+{
+    $jq("#locate_ssd_btn, #dislocate_ssd_btn, #eject_ssd_btn" ).hide();
+    $jq("#inject_ssd_btn").prop("disabled", false);
+    $jq("#inject_ssd_btn").show();
+}
+
+function SetEjectButtonLayout()
+{
+    $jq("#inject_ssd_btn").hide();
+    $jq("#locate_ssd_btn, #dislocate_ssd_btn, #eject_ssd_btn" ).prop("disabled", false);
+    $jq("#locate_ssd_btn, #dislocate_ssd_btn, #eject_ssd_btn" ).show();
+}
+
+function SetEmptyButtonLayout()
+{
+    $jq("#inject_ssd_btn, #locate_ssd_btn, #dislocate_ssd_btn, #eject_ssd_btn" ).hide();
+}
+
+function sleep(milliseconds) {
+  var start = new Date().getTime();
+  for (var i = 0; i < 1e7; i++) {
+	if ((new Date().getTime() - start) > milliseconds){
+	  break;
+	}
+  }
+}
+
+
+function ChangeAOC()
+{ 
+	current_aoc_no = aoc_no.selectedIndex;        
+	Loading(true);
+	UpdatePCIESSDinfo();
+	Loading(false);	
+}
+
+function ChangeSlot()
+{ 
+	current_slot_no = slot_no.selectedIndex;        
+	Loading(true);
+	UpdatePCIESSDinfo();
+	Loading(false);	
+}
+
+function isSSDExisted(SSD_dev,dev_num)
+{
+	 return (SSD_dev[dev_num][0].indexOf("Not Present") == -1	) ? 1 : 0;
+}
+
+function isPCIESSDErr(SSD_dev,dev_num)
+{
+	if( (SSD_dev[dev_num][0].indexOf("Warning") != -1 ) || (SSD_dev[dev_num][0].indexOf("Rebuilding") != -1) 
+        || (SSD_dev[dev_num][0].indexOf("Predicted Failure") != -1)         
+    )
+		return 3;
+    else if ( SSD_dev[dev_num][0].indexOf("Drive Failed") != -1 )
+    {
+        return 1;
+    }
+	else
+		return (SSD_dev[dev_num][0].indexOf("Error") != -1) ? 1 : 0;
+}
+
+function PageInit()
+{
+	aoc_no = document.getElementById("ssd_aoc_select");
+	slot_no = document.getElementById("ssd_slot_select");
+
+	$jq("#locate_ssd_btn").html(lang.LANG_SERVER_HEALTH_PCIE_SSD_LOCATE);
+	$jq("#dislocate_ssd_btn").html(lang.LANG_SERVER_HEALTH_PCIE_SSD_DISLOCATE);
+	$jq("#eject_ssd_btn").html(lang.LANG_SERVER_HEALTH_PCIE_SSD_EJECT);  
+	$jq("#inject_ssd_btn").html("Insert");    
+    
+	var_fw_ver_date=document.getElementById("fw_ver_date");
+
+	for(i=0; i < max_pcie_ssd; i++)
+	{
+		tmp_opt_obj = new Option("Slot:"+i, i);
+		slot_no.add(tmp_opt_obj, i);
+	}
+   
+	$(TAG_ALERT)
+	$(TAG_MAINPAGE)	
+    // Start the inital polling
+	GetPCIESSDInfo();
+}
+
+function ShowPCIESSDInfo()
+{
+	var tbl,row,cell,newNode;
+	var outer_cell;
+	var dev_num;
+	var ssd_info  = new Array("Status:", "Temperature:","Class Code:","Vendor ID:","Serial Number:","Model Number:",
+							  "Port 0 Max Link Speed:","Port 0 Max Link Width:","Port 1 Max Link Speed:",
+							  "Port 1 Max Link Width:", "Initial Power Requirement:", "Max Power Requirement:");
+	
+	var outer_tbl  = create_table("outer_tbl");
+	var tbody = document.createElement("tbody");
+	outer_tbl.appendChild(tbody);
+	var outer_row  = document.createElement("tr");
+	dev_num        = 0;
+
+	
+	document.getElementById("table1").innerHTML="";
+	for (k=0 ;k<honrizon_num; k++) {
+		outer_cell = document.createElement("td");
+		if ( k != 0) {
+			outer_cell.innerText =" ";
+			outer_row.appendChild(outer_cell);
+		}
+		outer_cell = document.createElement("td");
+        
+        var_fw_ver_date.innerHTML = CPLD_FW_Version;
+		
+		for (i=0 ;i<vertical_num; i++,dev_num++) {
+			if (dev_num >= max_pcie_ssd) {
+				break;
+			}
+			if(PCIESSD_dev[dev_num][0] != "N/A") {
+				tbl  = create_table(dev_num);
+				tb = document.createElement("tbody");
+				tbl.appendChild(tb);
+				row  = add_row(PCIESSD_dev,tbl,"th",lang.LANG_SERVER_HEALTH_PCIE_SSD_SLOT + dev_num,"");
+				tb.appendChild(row);
+			
+				for (j=0; j<ssd_info.length; j++) {
+					row = add_row(PCIESSD_dev,tbl,"td",ssd_info[j],PCIESSD_dev[dev_num][j] );
+					tb.appendChild(row);
+				}
+
+				outer_cell.appendChild(tbl);
+				newNode   = document.createElement("p");
+				outer_cell.appendChild(newNode);
+				outer_row.appendChild(outer_cell);
+			}
+		}
+ 	}
+ 	tbody.appendChild(outer_row);
+ 	document.getElementById("table1").appendChild(outer_tbl);  
+	getpcieinfo_interval = setTimeout(GetPCIESSDInfo,5000);
+}
+
+
+function Clear_page()
+{
+	document.getElementById("table1").innerHTML="";	
+}
+
+function Locate()
+{ 
+	clearTimeout(getpcieinfo_interval);
+
+	var url = '/cgi/ssd_locate.cgi';
+	var pars = 'aoc_no=' + parseInt(aoc_no.value, 10) + '&slot_no=' + parseInt(slot_no.value, 10);
+	var myAjax = new Ajax.Request(
+		url,
+	        {method: 'post',parameters:pars, onComplete: LocateResp}//reigister callback function
+	);
+}
+
+function LocateResp(originalRequest)
+{
+	if (originalRequest.readyState == 4 && originalRequest.status == 200)
+	{
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var retValueStr = response.substring(3, response.length);
+		
+		sleep(2000);
+		if(0 == parseInt(retValueStr,10))
+            alert("Slot " + parseInt(slot_no.value, 10) + ": [Locate] successfully.");
+		else
+            alert("Slot " + parseInt(slot_no.value, 10) + ": Unable to [Locate].");
+        UpdatePCIESSDinfo();
+	}
+}
+
+function DisLocate()
+{ 
+	clearTimeout(getpcieinfo_interval);
+    
+	var url = '/cgi/ssd_dislocate.cgi';
+	var pars =	'aoc_no=' + parseInt(aoc_no.value, 10) +
+				'&slot_no=' + parseInt(slot_no.value, 10);
+	
+	var myAjax = new Ajax.Request(
+		url,
+		{method: 'post',parameters:pars, onComplete: DisLocateResp}//reigister callback function
+	);
+}
+
+function DisLocateResp(originalRequest)
+{
+	if (originalRequest.readyState == 4 && originalRequest.status == 200)
+	{
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var retValueStr = response.substring(3, response.length);
+		
+		sleep(2000);
+		if(0 == parseInt(retValueStr,10))
+			alert("Slot " + parseInt(slot_no.value, 10) + ": [Stop Locate] successfully.");
+		else
+            		alert("Slot " + parseInt(slot_no.value, 10) + ": Unable to [Stop Locate].");		
+        UpdatePCIESSDinfo();
+	}
+}
+
+function CancelClick()
+{
+    cancel_req=1;
+    clearInterval(cancelBtn_int);
+    clearInterval(pollSSDeject_interval);
+    $jq("#btnCancel").html("Cancelling..."); 
+    $jq("#btnCancel").prop("disabled", true);
+    
+    Eject();
+}
+
+function Inject()
+{
+    clearTimeout(getpcieinfo_interval);
+    
+    var url = '/cgi/ssd_eject.cgi';
+    var pars =  'aoc_no=' + parseInt(aoc_no.value, 10) + '&slot_no=' + parseInt(slot_no.value, 10);                
+    
+    var myAjax = new Ajax.Request(
+        url,
+        {method: 'post',parameters:pars, onComplete: InjectResp}
+    );
+    inject_req=1;
+    $jq("#btnCancel").hide();
+    $jq("#btnInject").show();
+    $jq("#myModal").modal();
+
+}
+
+function InjectResp(originalRequest)
+{
+    if( (originalRequest.readyState == 4) && (originalRequest.status == 200) )
+    {
+        var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+        var retValueStr = response.substring(3, response.length);
+        
+        // Injecting command acknowledged
+        if(0 == parseInt(retValueStr,10))
+        {
+            bgcount = 0;            
+            // Every 5 second            
+            pollSSDeject_interval = setInterval(pollSSDeject, 5000);
+
+        }
+        else            
+            alert("Inject function failed");
+    }
+}
+
+function PreEject()
+{
+	sleep(2000);
+	if( confirm(gLangEjectConfirm) )
+		Eject();
+}
+
+function Eject()
+{
+	clearTimeout(getpcieinfo_interval);
+    
+	var url = '/cgi/ssd_eject.cgi';
+	var pars = 'aoc_no=' + parseInt(aoc_no.value, 10) + '&slot_no=' + parseInt(slot_no.value, 10);                
+    
+	var myAjax = new Ajax.Request(
+		url,
+	        {method: 'post',parameters:pars, onComplete: EjectResp}//reigister callback function
+	);
+}
+
+function EjectResp(originalRequest)
+{
+	if (originalRequest.readyState == 4 && originalRequest.status == 200)
+	{
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var retValueStr = response.substring(3, response.length);
+		
+		if(0 == parseInt(retValueStr,10))
+		{
+            // Jack Change
+			// Loading(true);
+
+			// console.log("Ejecting Request Ok...");
+            bgcount = 0;            
+            // Every 5 second            
+			pollSSDeject_interval = setInterval(pollSSDeject, 5000);
+            if( cancel_req != 1 )
+            {
+                $jq("#myModal").modal();
+                cancelBtn_count = 0;
+                cancelBtn_int = setInterval(cancelBtnCheck, 1000);
+            }
+            
+			// alert (lang.LANG_SERVER_HEALTH_PCIE_SSD_WAIT);
+		}
+		else
+        
+			alert (lang.LANG_SERVER_HEALTH_PCIE_SSD_EJECT_FAIL +  parseInt(slot_no.value, 10));
+	}
+}
+
+function cancelBtnCheck()
+{    
+    cancelBtn_count++;
+    if( cancelBtn_count <= 4 )
+    {
+        $jq("input[type=button]").attr("disabled", true);
+    }
+    else
+    {        
+       $jq("#btnCancel").html("Ejecting..."); 
+       $jq("#btnCancel").prop("disabled", true);
+       clearInterval( cancelBtn_int);
+    }
+}
+
+function pollSSDeject() 
+{
+	var url = '/cgi/get_eject.cgi';
+	var pars = 'aoc_no=' + parseInt(aoc_no.value, 10) + '&slot_no=' + parseInt(slot_no.value, 10);
+	var myAjax = new Ajax.Request(
+	                 url,
+	                 {timeout: 6000, method: 'post', parameters:pars, onSuccess: pollCallback}
+                 ); 
+}
+
+function pollCallback(originalRequest)
+{
+	if (originalRequest.readyState == 4 && originalRequest.status == 200)
+	{  
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var retValueStr = response.substring(7, response.length);
+		bgcount++;		
+        
+        if( inject_req )
+        {
+            //console.log("pollCallback = " + retValueStr + " bgcount=" + bgcount );
+            HandleInjectResponse(parseInt(retValueStr, 10), bgcount);
+            return;
+        }
+        if( cancel_req == 1 )
+            HandleCancelResponse( parseInt(retValueStr, 10), bgcount);
+        else
+        {
+            // HandleEjectResponse
+            if(1 == parseInt(retValueStr,10))
+            {	
+                clearInterval(pollSSDeject_interval);
+                $jq("#myModal").modal('hide');
+                $jq("input[type=button]").attr("disabled", false);
+                setTimeout( UpdatePCIESSDinfo(), 2000);
+                $jq("#myModal").modal('hide');
+                alert (lang.LANG_SERVER_HEALTH_PCIE_SSD_EJECT_SUCCESS);  
+                
+                $jq("#btnCancel").prop("disabled", false);
+                $jq("#btnCancel").html("Cancel");
+                // console.log("Successful Ejecting...");
+            }
+            else
+            {
+                if(2 == bgcount)
+                {
+                    $jq("input[type=button]").attr("disabled", true);
+                    //console.log("Disable buttons");
+                }	
+                
+                if((4 == bgcount) && (0 == parseInt(retValueStr,10)))
+                {
+                    clearInterval(pollSSDeject_interval);
+                    alert (lang.LANG_SERVER_HEALTH_PCIE_SSD_EJECT_FAIL +  parseInt(slot_no.value, 10));                                        
+                    UpdatePCIESSDinfo();
+                    $jq("#myModal").modal('hide');
+                    $jq("input[type=button]").attr("disabled", false);  
+                    $jq("#btnCancel").prop("disabled", false);
+                    $jq("#btnCancel").html("Cancel"); 
+                    //console.log("Failed Ejecting...");
+                }
+                else if( bgcount > 4)
+                {
+                    clearInterval(pollSSDeject_interval);
+                    alert ("Ejecting timeout on slot " +  parseInt(slot_no.value, 10));                                        
+                    UpdatePCIESSDinfo();
+                    $jq("#myModal").modal('hide');
+                    $jq("input[type=button]").attr("disabled", false);  
+                    $jq("#btnCancel").prop("disabled", false);
+                    $jq("#btnCancel").html("Cancel"); 
+                    //console.log("Ejecting... timeout");                    
+                }
+            }
+        }
+	}
+}
+
+// retValue: 1 - result of XOR on previous and current status
+//
+function HandleInjectResponse( retValue, retCount )
+{
+    if(retValue == 1 )
+    {   
+        clearInterval(pollSSDeject_interval);
+        inject_req=0;
+        $jq("#myModal").modal('hide');
+        $jq("#btnCancel").show();
+        $jq("#btnInject").hide();
+        UpdatePCIESSDinfo();
+        alert( "Insert OK" );                    
+        //console.log("Successful Injecting...");
+    }
+    else
+    {
+        if( (retCount >= 4) && ( retValue == 0) )
+        {
+            clearInterval(pollSSDeject_interval);
+            inject_req=0;
+            $jq("#myModal").modal('hide');
+            $jq("#btnCancel").show();
+            $jq("#btnInject").hide();
+            UpdatePCIESSDinfo();
+            alert("Insert Failed");                        
+            //console.log("Failed Injecting...");
+        }
+        else if( retCount > 4 )
+        {
+            clearInterval(pollSSDeject_interval);
+            inject_req=0;
+            $jq("#myModal").modal('hide');
+            $jq("#btnCancel").show();
+            $jq("#btnInject").hide();
+            UpdatePCIESSDinfo();
+            alert("Inserting timeout on slot " +  parseInt(slot_no.value, 10));
+            //console.log("Failed Injecting...");
+        }
+    }    
+}
+
+function HandleCancelResponse( retValue, retCount )
+{
+    if(retValue == 0)
+    {   
+        clearInterval(pollSSDeject_interval);
+        $jq("#myModal").modal('hide');
+        $jq("input[type=button]").attr("disabled", false);
+        UpdatePCIESSDinfo();        
+        alert ("Cancel Ok");        
+        $jq("#btnCancel").html("Cancel");
+        cancel_req=0;
+        $jq("#btnCancel").prop("disabled", false);
+        //console.log("Successful Cancelling...");
+    }
+    else
+    {        
+        if((4 == retCount) && (retValue == 1))
+        {
+            clearInterval(pollSSDeject_interval);            
+            UpdatePCIESSDinfo();
+            alert ("Cancel failed.");            
+            $jq("#myModal").modal('hide');
+            $jq("input[type=button]").attr("disabled", false);                
+            $jq("#btnCancel").html("Cancel"); 
+            cancel_req=0;
+            $jq("#btnCancel").prop("disabled", false);
+            //console.log("Failed Cancelling...");
+        }
+    }    
+}
+
+</script>
+  	<!-- power javascript start -->
+</head>
+
+<body onload="PageInit()">
+	<span class="LoadingStyle" id="loading"></span>
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td><td><div class="mtitle"><script>document.writeln(lang.LANG_SERVER_HEALTH_PCIE_SSD_CAPTION)</script></div></td></tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr>
+        	  <td></td>
+            <td>
+                <table class="boxSection"><tr><td><div class="textA"><script>document.writeln(lang.LANG_SERVER_HEALTH_PCIE_SSD_DESC)</script></div></td><tr></table>
+            </td>
+        </tr>
+        <tr><td>&nbsp;</td><td>
+			&nbsp;</td></tr>
+
+
+        <tr><td>&nbsp;</td><td>
+		<label class="Categorytext">
+			Locate / Stop Locate SSD 
+		</label>
+<!-- Modal -->
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+  <div class="modal-dialog">
+    <div class="modal-content">
+        <center>
+            <div id="spinner">
+            <img id="img-spinner" src="../images/spinner3.gif" alt="Ejecting..."/>
+            </div>      
+            <button type="button" id="btnCancel" class="btn btn-default" onClick="CancelClick()">Cancel</button>
+            <button type="button" id="btnInject" class="btn btn-default" disabled>Inserting...</button>        
+            <div class="spinner_bt"> </div>
+        </center>
+    </div>
+  </div>
+</div>
+<!-- End of Mode -->
+
+	</td></tr>
+
+        <tr><td>&nbsp;</td><td>
+		<label class="Categorytext">
+			<select id="ssd_aoc_select" onChange="ChangeAOC()"></select> 
+		</label>
+		<label class="Categorytext">
+			<select id="ssd_slot_select" onChange="ChangeSlot()"></select> 
+		</label>
+		<button type="button" class="btnStyle" id="locate_ssd_btn" onclick="Locate()" $(TAG_DISABLE)></button>
+		<button type="button" class="btnStyle" id="dislocate_ssd_btn" onclick="DisLocate()" $(TAG_DISABLE)></button>
+		<button type="button" class="btnStyle" id="eject_ssd_btn" onClick="PreEject()" $(TAG_DISABLE)></button>
+		<button type="button" class="btnStyle" id="inject_ssd_btn" onClick="Inject()" $(TAG_DISABLE)></button>
+		</td></tr>
+        
+        
+        <tr><td>&nbsp;</td><td>
+			&nbsp;</td></tr>
+
+	<tr><td>&nbsp; 
+	       	</td><td>
+			<label class="Categorytext">
+				<script>document.writeln(lang.LANG_SERVER_HEALTH_PCIE_SSD_FW_VER_DATE);</script>
+			</label>
+			<span id="fw_ver_date" class="labelhead"></span>
+	</td></tr>
+
+	<tr><td>&nbsp; 
+	       	</td><td>
+        	<div id="table1"></div>
+	</td></tr>
+
+	<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+        <tr><td></td>
+        	  <td>
+
+        	  </td>
+        </table>
+
+        
+</body>
+</html>

@@ -1,0 +1,11 @@
+--- inc/portable.h	2015-02-11 13:57:22.637320791 +0800
++++ include/portable.h	2015-02-11 13:59:16.094792195 +0800
+@@ -860,7 +860,7 @@
+ #define LDAP_VENDOR_VERSION_PATCH 40
+ 
+ /* define if memcmp is not 8-bit clean or is otherwise broken */
+-#define NEED_MEMCMP_REPLACEMENT 1
++/* #undef NEED_MEMCMP_REPLACEMENT */
+ 
+ /* define if you have (or want) no threads */
+ #define NO_THREADS 1

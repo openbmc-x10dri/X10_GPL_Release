@@ -1,0 +1,2 @@
+config CONFIG_CPU_ASPEED_2400
+    bool "ASPEED 2400"

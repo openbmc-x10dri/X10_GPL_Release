@@ -1,0 +1,53 @@
+#!/bin/sh
+
+if [ -z "$LD_LIBRARY_PATH" ] || echo $LD_LIBRARY_PATH | grep -qv /home/dean/Workspace/SRC_1028/SFCB/SFCB_arm/lib
+then
+    LD_LIBRARY_PATH=/lib/sfcb:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH
+fi
+
+start() {
+	echo -n "Starting sfcb: "
+	/sbin/sfcbd -d -c /etc/sfcb/sfcb.cfg && echo "done." && return 0 ||
+	echo "failed."
+	return 1
+}	
+
+stop() {
+	echo -n "Shutting down sfcb: "
+	killall sfcbd && echo "done." && return 0 ||
+	echo "failed."
+	return 1
+}
+
+reload() {
+	echo -n "Reloading sfcb configuration: "
+	killall -HUP sfcbd && echo "done." && return 0 ||
+	echo "failed."
+	return 1
+}
+
+case "$1" in
+    start)
+	start
+	;;
+    stop)
+	stop
+	;;
+    status)
+	echo -n "Checking SFCB status: "
+	ps --noheaders -C sfcbd || echo "stopped." 
+	;;
+    restart)
+    	stop
+	start
+	;;
+    reload)
+	reload
+	;;
+    *)
+	echo "Usage: sfcb {start|stop|status|reload|restart}"
+	exit 1
+	;;
+esac
+exit $?

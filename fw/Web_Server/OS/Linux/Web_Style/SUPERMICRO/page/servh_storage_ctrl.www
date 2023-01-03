@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
+<head>
+	<META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+	<META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+	<META NAME="Super Micro Computer, Inc." CONTENT="(c) Super Micro Computer, Inc. 2014">
+	<title></title>
+	<link rel="stylesheet" href="../css/basic.css" type="text/css">
+	<script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script> 
+	<script language="javascript" src="../js/utils.js"></script>
+<style type="text/css">
+.tbl {
+  	border:0; 
+  	border-collpase:collpase;
+  	width: 400px
+}
+.table_td
+{
+	border-bottom: 1px solid #ccc;
+  	background:transparent;
+  	cursor:default;
+  	height:1.6em;
+  	font-size :12px;
+}
+</style>
+<!-- power javascript start -->
+<script type="text/javascript">
+var mainPage 	= "../cgi/url_redirect.cgi?url_name=health";
+var devno=-1;
+function GetLSICtrlInfo(idx) {
+	Loading(true);
+	var url = '/cgi/ipmi.cgi';
+	var pars = 'Get_LSICtrl.XML=('+idx+',0)&time_stamp='+(new Date());
+	var myAjax = new Ajax.Request(
+		url,
+		{method: 'post',parameters:pars, onComplete: LSICtrlinfoResp}
+		);
+}
+function LSICtrlinfoResp(originalRequest) {
+	if (originalRequest.readyState == 4 && originalRequest.status == 200) {
+		Loading(false);
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var xmldoc=GetResponseXML(response);
+		if(xmldoc == null) {
+			SessionTimeout();
+			return;
+		}
+		var ctrl_info = new Array("Product Name:","Serial:","Package:","FW Version:",
+							  "BIOS Version:","Boot Block Version:","Battery Status:");
+		var Root			= xmldoc.documentElement;
+   		var HDDIndoNode		= Root.getElementsByTagName('CtrlInfo');
+		var LSICtrl_dev    	= new Array();
+		LSICtrl_dev[0]		= HDDIndoNode[0].getAttribute("PN");
+		LSICtrl_dev[1]		= HDDIndoNode[0].getAttribute("SN");
+		LSICtrl_dev[2]		= HDDIndoNode[0].getAttribute("PackVer");
+		LSICtrl_dev[3]		= HDDIndoNode[0].getAttribute("FWVer");
+		LSICtrl_dev[4]		= HDDIndoNode[0].getAttribute("BiosVer");
+		LSICtrl_dev[5]		= HDDIndoNode[0].getAttribute("BBVer");
+		LSICtrl_dev[6]		= HDDIndoNode[0].getAttribute("Battery");
+		var table=document.createElement('table');
+		table.className = "tbl";
+		var tbody = document.createElement("tbody");
+		table.appendChild(tbody);
+		for (i=0; i<ctrl_info.length; i++) {
+			var tr  = document.createElement("tr");
+			var td = document.createElement("td");
+			td.className = "table_td";
+			var text = document.createTextNode(ctrl_info[i]);
+			td.appendChild(text);
+			tr.appendChild(td);
+			td = document.createElement("td");
+			td.className = "table_td";
+			text = document.createTextNode(LSICtrl_dev[i]);
+			td.appendChild(text);
+			tr.appendChild(td);
+			tbody.appendChild(tr);
+		}
+		document.getElementById("table1").appendChild(table);
+	}
+}
+function PageInit() {
+	$(TAG_ALERT)
+	$(TAG_MAINPAGE)
+	var param1 = window.location.hash.split("#");
+	if (param1[1].length != 0) {
+		devno = param1[1];
+		var x = document.getElementById("lsi_select");
+		var option = document.createElement("option");
+		option.text = 'Device'+devno;
+		x.add(option);
+		x.disabled = true;
+		GetLSICtrlInfo(devno);
+	} else {
+		location.href = '../cgi/url_redirect.cgi?url_name=servh_storage';
+	}
+}
+</script>
+<!-- power javascrddipt start -->
+</head>
+<body onload="PageInit()">
+	<span class="LoadingStyle" id="loading"></span>
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td><td><div class="mtitle"><script>document.writeln(lang.LANG_SERVER_HEALTH_STORAGE_CAPTION)</script></div></td></tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr><td></td>
+            <td><table class="boxSection"><tr><td><div class="textA"><script>document.writeln(lang.LANG_SERVER_HEALTH_STORAGE_DESC)</script></div></td><tr></table></td>
+        </tr>
+        <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+        <tr><td></td>
+			<td>
+			<select id="lsi_select"></select>
+			<div id="table1"></div>
+			</td></tr>
+	</table>
+</body>
+</html>

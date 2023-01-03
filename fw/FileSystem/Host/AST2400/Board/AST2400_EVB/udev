@@ -1,0 +1,42 @@
+#!/bin/sh
+
+start_udev()
+{
+	mount -n -o mode=0755 -t tmpfs tmpfs /dev
+	mkdir -m 0755 /dev/pts
+	mknod -m 622 /dev/console c 5 1
+	mknod -m 666 /dev/null c 1 3
+	mknod -m 666 /dev/zero c 1 5
+	mknod -m 666 /dev/ptmx c 5 2
+	mknod -m 666 /dev/tty c 5 0
+	mknod -m 444 /dev/random c 1 8
+	mknod -m 444 /dev/urandom c 1 9
+	mkdir /dev/vc
+	
+	mknod /dev/vc/0 c 4 0
+	mknod /dev/vc/1 c 4 1
+	mknod /dev/vc/2 c 4 2
+	mknod /dev/vc/3 c 4 3
+	mknod /dev/vc/4 c 4 4
+#	chown  root:tty /dev/{console,ptmx,tty}
+	ln -s /proc/self/fd /dev/fd
+	ln -s /proc/self/fd/0 /dev/stdin
+	ln -s /proc/self/fd/1 /dev/stdout
+	ln -s /proc/self/fd/2 /dev/stderr
+	ln -s /proc/kcore /dev/core
+	mount -vt devpts -o gid=4,mode=620 none /dev/pts
+
+	/bin/udevd --daemon
+    /bin/udevadm trigger --action=add --type=subsystems
+	/bin/udevadm trigger --action=add --type=devices
+	/bin/udevadm settle
+}
+
+
+case $1 in 
+    start)
+	start_udev && echo "populate devices node ............."
+    ;;
+    *)
+    ;;
+esac

@@ -1,0 +1,631 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
+<head>
+	<META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+	<META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+	<META NAME="Super Micro Computer, Inc." CONTENT="(c) Super Micro Computer, Inc. 2014">
+	<title></title>
+	<!-- common css -->
+	<link rel="stylesheet" href="../css/basic.css" type="text/css">
+	<link rel="stylesheet" href="../css/grid/listgrid.css" type="text/css">
+	<!--common javascipt library -->
+	<script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script>
+	<script language="javascript" src="../js/grid/LWbase.js"></script>
+	<script language="javascript" src="../js/grid/LWfactory.js"></script>
+	<script language="javascript" src="../js/grid/LWdatagrid.js"></script>
+	<script language="javascript" src="../js/utils.js"></script>
+	<script language="javascript" src="../js/deployJava.js"></script>
+	<script type="text/javascript">
+	/*
+	global variables
+	*/
+	var current_state;
+	var action;
+	var state_to_expect = 0xf;
+	var MaxRetries = 5;
+	var DisableOperate = 1;
+	var UseExternalBMC = 0;	
+	
+	var msgCableChkBMC = lang.LANG_CHASSIS_CHECK1;
+	var msgCableChkFeature = lang.LANG_CHASSIS_CHECK2;
+	
+	var mainPage = "../cgi/url_redirect.cgi?url_name=logout";
+
+	function PageInit()
+	{
+		var_fw_rev=document.getElementById("fw_rev");
+		var_ip_addr=document.getElementById("ip_addr");
+		var_mac_addr=document.getElementById("mac_addr");
+		var_build_time=document.getElementById("build_time");
+		var_capture_preview=document.getElementById("capture_preview");
+		var_capture_preview.value = lang.LANG_SYS_INFO_REFRESH_PREVIEW_IMG;
+		var_status_msg=document.getElementById("status_msg");
+		var_btn_poweron=document.getElementById("btn_poweron");
+		var_btn_poweron.value = lang.LANG_SYS_INFO_PWRON;
+		var_btn_powerdown=document.getElementById("btn_powerdown");
+		var_btn_powerdown.value = lang.LANG_SYS_INFO_PWRDOWN;
+		var_btn_reset=document.getElementById("btn_reset");
+		var_btn_reset.value = lang.LANG_SYS_INFO_RESET;
+		image = document.getElementById('img1');
+
+		image.onmouseover = function()
+		{
+			image.style.cursor = 'pointer';
+			return;
+		}
+		var_capture_preview.onclick = CapturePreviewTask;
+		var_btn_reset.onclick = function()
+		{
+			action = 3;
+			PowerActionHandler();
+		}
+		var_btn_powerdown.onclick = function()
+		{
+			action = 5;
+			PowerActionHandler();
+		}
+		var_btn_poweron.onclick = function()
+		{
+			action = 1;
+			PowerActionHandler();
+		}
+
+		$(TAG_ALERT)
+		$(TAG_MAINPAGE1)
+		GetIKVMStatus(GetSnapshot);
+		GetSystemInfo();//0 user 1 admin/opser
+	}
+	function pollCallback3(originalRequest) {
+		if ((originalRequest.readyState == 4) && (originalRequest.status == 200)) {
+			var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+			var xmldoc=GetResponseXML(response);
+			if(xmldoc == null) {
+				SessionTimeout();
+				return;
+			}
+			var root=xmldoc.documentElement;
+			if(browser_ie) {
+				percent_complete=root.text;
+			} else {
+				percent_complete=root.textContent;
+			}
+			if(0 != percent_complete) {
+				alert(lang.LANG_SERVICE_IS_NOT_AVAILABLE);
+			} else {
+				GetJNLPRequest(image, 0);
+				var_capture_preview.disabled = true;
+				var ajax_url = '/cgi/CapturePreview.cgi';
+				var ajax_param = 'IKVM_PREVIEW.XML=(0,0)&time_stamp='+(new Date());
+				var ajax_req = new Ajax.Request(
+							 ajax_url,
+							 {method: 'post',parameters:ajax_param}//register callback function
+							 );
+
+				setTimeout("ReloadImage()",3000);
+			}
+		}
+	}
+	function GetSnapshot(enable){
+		if (enable){
+			if ( $(TAG_PREVIEW) ) {
+				var url = '/cgi/upgrade_process.cgi';
+				var pars = 'fwtype=255&time_stamp='+(new Date()) ;
+				var myAjax = new Ajax.Request(
+							url,
+							{method: 'post',parameters:pars, onComplete: pollCallback3}
+							);
+			}
+		}
+		else{
+			var_capture_preview.disabled = true;
+			image.style.visibility = 'hidden';
+		}
+	}
+	function GetSystemInfo() {
+		Loading(true);
+		var ajax_url = '/cgi/ipmi.cgi';
+		var ajax_param = 'GENERIC_INFO.XML=(0,0)&time_stamp='+(new Date());
+		var ajax_req = new Ajax.Request(
+					ajax_url,
+					{method: 'post',parameters:ajax_param, onComplete: GetFWVersion}//register callback function
+					);
+		GetPwrStatus();
+	}
+	function ReloadImage() {
+		//image.style.visibility = 'hidden';
+		image.src='/cgi/url_redirect.cgi?url_name=Snapshot&url_type=img&time_stamp='+(new Date());;
+		setTimeout("DisplayImage()",2000);
+	}
+	function DisplayImage() {
+		Loading(true);
+		image.style.visibility = 'visible';
+		var_capture_preview.disabled = false;
+		Loading(false);
+	}
+	function pollCallback2(originalRequest) {
+		if ((originalRequest.readyState == 4) && (originalRequest.status == 200)) {
+			var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+			var xmldoc=GetResponseXML(response);
+			if(xmldoc == null) {
+				SessionTimeout();
+				return;
+			}
+			var root=xmldoc.documentElement;
+			if(browser_ie) {
+				percent_complete=root.text;
+			} else {
+				percent_complete=root.textContent;
+			}
+			if(0 != percent_complete) {
+				alert(lang.LANG_SERVICE_IS_NOT_AVAILABLE);
+			} else {
+				image.style.visibility = 'hidden';
+				var_capture_preview.disabled = true;
+				var ajax_url = '/cgi/CapturePreview.cgi';
+				var ajax_param = 'IKVM_PREVIEW.XML=(0,0)&time_stamp='+(new Date());
+				var ajax_req = new Ajax.Request(
+							ajax_url,
+							{method: 'post',parameters:ajax_param}//register callback function
+							);
+				setTimeout("ReloadImage()",3000);
+			}
+		}
+	}
+	function CapturePreviewTask() {
+		var url = '/cgi/upgrade_process.cgi';
+		var pars = 'fwtype=255&time_stamp='+(new Date()) ;
+		var myAjax = new Ajax.Request(
+					url,
+					{method: 'post',parameters:pars, onComplete: pollCallback2}
+					);
+	}
+	function GetFWVersion(originalRequest) {
+		if (originalRequest.readyState == 4 && originalRequest.status == 200) {
+			var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+			var xml_obj=GetResponseXML(response);
+			if(xml_obj == null) {
+				SessionTimeout();
+				return;
+			}
+			/* Tony, 09/03/2012 Add host and user info { */
+			var ajax_url = '/cgi/ipmi.cgi';
+			var ajax_param = 'Get_PlatformInfo.XML=(0,0)&time_stamp='+(new Date());
+			var ajax_req = new Ajax.Request(
+						ajax_url,
+						{method: 'post',parameters:ajax_param, onComplete: GetFWVersion1}//register callback function
+						);
+			/* Tony, 09/03/2012 Add host and user info } */
+			var IPMIRoot = xml_obj.documentElement;
+			GENERIC_INFO=IPMIRoot.getElementsByTagName('GENERIC_INFO');//point to GENERIC_INFO
+			GENERIC=GENERIC_INFO[0].getElementsByTagName('GENERIC');
+			var ip_address = GENERIC[0].getAttribute("BMC_IP");
+			var mac_addrress = GENERIC[0].getAttribute("BMC_MAC");
+			var fw_value = GENERIC[0].getAttribute("IPMIFW_VERSION");
+			var fw_version = fw_value.substring(0, 2) + '.' + fw_value.substring(2);
+			var fw_bldtime = GENERIC[0].getAttribute("IPMIFW_BLDTIME");
+			//var sdr_value = GENERIC[0].getAttribute("SDR_VERSION");
+			//var sdr_version = sdr_value.substring(0, 2) + '.' + sdr_value.substring(2);
+			//var fru_value = GENERIC[0].getAttribute("FRU_VERSION");
+			//var fru_version = fru_value.substring(0, 2) + '.' + fru_value.substring(2);
+	
+			var_fw_rev.innerHTML = fw_version;
+			//var_fru_rev.innerHTML = fru_version;
+			//var_sdr_rev.innerHTML = sdr_version;
+			var_build_time.innerHTML = fw_bldtime;
+			var_ip_addr.innerHTML = ip_address;
+			var_mac_addr.innerHTML =  mac_addrress;
+		}
+	}
+	/* Tony, 09/03/2012 Add host and user info { */
+	function Privilege(priv) {
+		return eval('lang.LANG_USER_PRIVILEG_' + IntegerToHexString(priv));
+	}	
+	function GetFWVersion1(originalRequest) {
+	    if (originalRequest.readyState == 4 && originalRequest.status == 200){
+	    	var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+	    	var xml_obj=GetResponseXML(response);
+			if(xml_obj == null) {
+		        SessionTimeout();
+		        return;
+		    }
+
+		    var IPMIRoot = xml_obj.documentElement;
+		    PlatformInfoElm=IPMIRoot.getElementsByTagName('PLATFORM_INFO');//point to PlatformInfo
+
+	    	var mb_mac_addr1 = PlatformInfoElm[0].getAttribute("MB_MAC_ADDR");
+		    var mb_mac_addr2_title=eval('lang.LANG_SYS_INFO_MB_MAC_ADDRESS2');
+	    	var mb_mac_addr2 = PlatformInfoElm[0].getAttribute("MB_MAC_ADDR1");
+		    var mb_mac_addr3_title=eval('lang.LANG_SYS_INFO_MB_MAC_ADDRESS3');
+	    	var mb_mac_addr3 = PlatformInfoElm[0].getAttribute("MB_MAC_ADDR2");
+		    var mb_mac_addr4_title=eval('lang.LANG_SYS_INFO_MB_MAC_ADDRESS4');
+	    	var mb_mac_addr4 = PlatformInfoElm[0].getAttribute("MB_MAC_ADDR3");
+		    var mb_mac_addr5_title=eval('lang.LANG_SYS_INFO_MB_MAC_ADDRESS5');
+	    	var mb_mac_addr5 = PlatformInfoElm[0].getAttribute("MB_MAC_ADDR4");
+		    var mb_mac_addr6_title=eval('lang.LANG_SYS_INFO_MB_MAC_ADDRESS6');
+	    	var mb_mac_addr6 = PlatformInfoElm[0].getAttribute("MB_MAC_ADDR5");
+		    var mb_mac_addr7_title=eval('lang.LANG_SYS_INFO_MB_MAC_ADDRESS7');
+	    	var mb_mac_addr7 = PlatformInfoElm[0].getAttribute("MB_MAC_ADDR6");
+		    var mb_mac_addr8_title=eval('lang.LANG_SYS_INFO_MB_MAC_ADDRESS8');
+	    	var mb_mac_addr8 = PlatformInfoElm[0].getAttribute("MB_MAC_ADDR7");
+
+
+	    	var bios_sn_title = eval('lang.LANG_SYS_INFO_BIOS_REV');
+	    	var bios_sn = PlatformInfoElm[0].getAttribute("BIOS_VERSION");
+	    	var bios_build_date_title= eval('lang.LANG_SYS_INFO_BIOS_BUILD_TIME');	    	
+	    	var bios_build_date = PlatformInfoElm[0].getAttribute("BIOS_BUILD_DATE");	    	
+
+	    	var cpld_rev_title= eval('lang.LANG_SYS_INFO_CPLD_REV');	    	
+	    	var cpld_rev = PlatformInfoElm[0].getAttribute("CPLD_REV");
+
+		var tableElement = document.getElementById("infotable");
+		if (tableElement) {
+				var newTable = document.createElement('tbody');
+
+				var newRow = document.createElement("tr");
+				var Cell1 = document.createElement("td");
+				Cell1.style.cssText = 'text-align:left;width:230px;';
+				Cell1.className = "labelhead";
+				var Cell2 = document.createElement("td");
+				Cell2.style.cssText = 'text-align:left;';
+				Cell2.className = "labelhead";
+				if(parseInt(PlatformInfoElm[0].getAttribute("BIOS_VERSION_EXIST"), 10) == 1) {
+					Cell1.appendChild(document.createTextNode(bios_sn_title+" "+bios_sn));
+				}
+				if (parseInt(PlatformInfoElm[0].getAttribute("MB_MAC_NUM"), 10) >= 1)
+				{
+					Cell2.appendChild(document.createTextNode(lang.LANG_SYS_INFO_MB_MAC_ADDRESS1+" "+mb_mac_addr1));
+					newRow.appendChild(Cell1);
+					newRow.appendChild(Cell2);
+					newTable.appendChild(newRow);
+				}
+				var append = 0;
+				newRow = document.createElement("tr");
+				Cell1 = document.createElement("td");
+				Cell1.style.cssText = 'text-align:left;width:230px;';
+				Cell1.className = "labelhead";
+				if (parseInt(PlatformInfoElm[0].getAttribute("BIOS_BUILD_DATE_EXIST"), 10) == 1) {
+					Cell1.appendChild(document.createTextNode(bios_build_date_title+" "+bios_build_date));
+					append = 1;
+				}
+				Cell2 = document.createElement("td");
+				Cell2.style.cssText = 'text-align:left;';
+				Cell2.className = "labelhead";
+
+				if (parseInt(PlatformInfoElm[0].getAttribute("MB_MAC_NUM"), 10) >= 2) {
+					Cell2.appendChild(document.createTextNode(mb_mac_addr2_title+" "+mb_mac_addr2));
+					append = 1;
+				}
+				if (append == 1) {
+					newRow.appendChild(Cell1);
+					newRow.appendChild(Cell2);
+					newTable.appendChild(newRow);
+					append = 0;
+				}
+				newRow = document.createElement("tr");
+				Cell1 = document.createElement("td");
+				Cell1.style.cssText = 'text-align:left;width:230px;';
+				Cell1.className = "labelhead";
+				if (parseInt(PlatformInfoElm[0].getAttribute("CPLD_REV_EXIST"), 10) == 1) {
+					Cell1.appendChild(document.createTextNode(cpld_rev_title+" "+cpld_rev));
+					append = 1;
+				}
+				Cell2 = document.createElement("td");
+				Cell2.style.cssText = 'text-align:left;';
+				Cell2.className = "labelhead";
+
+				if (parseInt(PlatformInfoElm[0].getAttribute("MB_MAC_NUM"), 10) >= 3) {
+					Cell2.appendChild(document.createTextNode(mb_mac_addr3_title+" "+mb_mac_addr3));
+					append = 1;
+				}
+				if (append == 1) {
+					newRow.appendChild(Cell1);
+					newRow.appendChild(Cell2);
+					newTable.appendChild(newRow);
+					append = 0;
+				}
+				newRow = document.createElement("tr");
+				Cell1 = document.createElement("td");
+				Cell1.style.cssText = 'text-align:left;width:230px;';
+				Cell1.className = "labelhead";
+				Cell2 = document.createElement("td");
+				Cell2.style.cssText = 'text-align:left;';
+				Cell2.className = "labelhead";
+
+				if (parseInt(PlatformInfoElm[0].getAttribute("MB_MAC_NUM"), 10) >= 4) {
+					Cell2.appendChild(document.createTextNode(mb_mac_addr4_title+" "+mb_mac_addr4));
+					append = 1;
+				}
+				if (append == 1) {
+					newRow.appendChild(Cell1);
+					newRow.appendChild(Cell2);
+					newTable.appendChild(newRow);
+					append = 0;
+				}
+				newRow = document.createElement("tr");
+				Cell1 = document.createElement("td");
+				Cell1.style.cssText = 'text-align:left;width:230px;';
+				Cell1.className = "labelhead";
+				Cell2 = document.createElement("td");
+				Cell2.style.cssText = 'text-align:left;';
+				Cell2.className = "labelhead";
+
+				if (parseInt(PlatformInfoElm[0].getAttribute("MB_MAC_NUM"), 10) >= 5) {
+					Cell2.appendChild(document.createTextNode(mb_mac_addr5_title+" "+mb_mac_addr5));
+					append = 1;
+				}
+				if (append == 1) {
+					newRow.appendChild(Cell1);
+					newRow.appendChild(Cell2);
+					newTable.appendChild(newRow);
+					append = 0;
+				}
+				newRow = document.createElement("tr");
+				Cell1 = document.createElement("td");
+				Cell1.style.cssText = 'text-align:left;width:230px;';
+				Cell1.className = "labelhead";
+				Cell2 = document.createElement("td");
+				Cell2.style.cssText = 'text-align:left;';
+				Cell2.className = "labelhead";
+
+				if (parseInt(PlatformInfoElm[0].getAttribute("MB_MAC_NUM"), 10) >= 6) {
+					Cell2.appendChild(document.createTextNode(mb_mac_addr6_title+" "+mb_mac_addr6));
+					append = 1;
+				}
+				if (append == 1) {
+					newRow.appendChild(Cell1);
+					newRow.appendChild(Cell2);
+					newTable.appendChild(newRow);
+				}
+				newRow = document.createElement("tr");
+				Cell1 = document.createElement("td");
+				Cell1.style.cssText = 'text-align:left;width:230px;';
+				Cell1.className = "labelhead";
+				Cell2 = document.createElement("td");
+				Cell2.style.cssText = 'text-align:left;';
+				Cell2.className = "labelhead";
+
+				if (parseInt(PlatformInfoElm[0].getAttribute("MB_MAC_NUM"), 10) >= 7) {
+					Cell2.appendChild(document.createTextNode(mb_mac_addr7_title+" "+mb_mac_addr7));
+					append = 1;
+				}
+				if (append == 1) {
+					newRow.appendChild(Cell1);
+					newRow.appendChild(Cell2);
+					newTable.appendChild(newRow);
+				}
+				newRow = document.createElement("tr");
+				Cell1 = document.createElement("td");
+				Cell1.style.cssText = 'text-align:left;width:230px;';
+				Cell1.className = "labelhead";
+				Cell2 = document.createElement("td");
+				Cell2.style.cssText = 'text-align:left;';
+				Cell2.className = "labelhead";
+
+				tableElement.appendChild(newTable);
+			}
+		    
+			Loading(false);
+	    }
+	}
+	/* Tony, 09/03/2012 Add host and user info } */
+	function GetPwrStatusHandler(originalRequest)
+	{
+		Loading(false);
+		if (originalRequest.readyState == 4 && originalRequest.status == 200){
+			var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+			var xml_obj=GetResponseXML(response);
+			var IPMI=xml_obj.documentElement;//point to IPMI
+			var POWER_INFO=IPMI.getElementsByTagName('POWER_INFO');//point to SENSOR_INFO
+			var POWER = POWER_INFO[0].getElementsByTagName('POWER');
+			var pstate = POWER[0].getAttribute("STATUS");
+			current_state = (pstate == "OFF") ? 0 : 1;
+			if(state_to_expect != 0xf)
+			{
+				if(current_state != state_to_expect)
+				{
+					MaxRetries--;
+					Loading(true,lang.LANG_CHASSIS_RETRY + MaxRetries);
+					if(MaxRetries == 0)
+					{
+						Loading(false);
+						var cblstr = UseExternalBMC ? msgCableChkBMC:msgCableChkFeature;
+						if(action == 5)
+						{
+							alert(lang.LANG_CHASSIS_SOFTOFF_FAIL + cblstr);
+						}
+						else
+						{
+							alert(lang.LANG_CHASSIS_ACTION_FAIL + cblstr);
+						}
+						return;
+					}
+					if(action == 5)
+						setTimeout("GetPwrStatus()",10000);
+					else if(action == 1)
+						setTimeout("GetPwrStatus()",15000);
+					else
+						setTimeout("GetPwrStatus()",10000);
+					return;
+				}
+			}
+	
+			if(current_state==0)
+			{
+				var_status_msg.innerHTML = lang.LANG_CHASSIS_STATUS_OFF;
+				var_status_msg.style.color = '#990000';
+				action = 1;
+				MaxRetries = 5;
+				if ( $(TAG_PREVIEW) ){
+					var_btn_powerdown.disabled = true;
+					var_btn_reset.disabled = true;
+					var_btn_poweron.disabled = false;
+				}
+			}
+			else
+			{
+				var_status_msg.innerHTML = lang.LANG_CHASSIS_STATUS_ON;
+				var_status_msg.style.color = '#009900';
+				action = 3;
+				MaxRetries = 5;
+				if ( $(TAG_PREVIEW) ){
+					var_btn_poweron.disabled = true;
+					var_btn_powerdown.disabled = false;
+					var_btn_reset.disabled = false;
+				}
+			}
+		}
+	}
+	function GetPwrStatus()
+	{
+		var ajax_url = '../cgi/ipmi.cgi';
+		var ajax_param = '?POWER_INFO.XML=(0,0)&time_stamp='+(new Date());
+		var ajax_req = new Ajax.Request(
+					ajax_url,
+					{method: 'post', parameters: ajax_param, onComplete: GetPwrStatusHandler}//register callback function
+					);
+	}
+	function pollCallback1(originalRequest) {
+		if ((originalRequest.readyState == 4) && (originalRequest.status == 200)) {
+			var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+			var xmldoc=GetResponseXML(response);
+			if(xmldoc == null) {
+				SessionTimeout();
+				return;
+			}
+			var root=xmldoc.documentElement;
+			if(browser_ie) {
+				percent_complete=root.text;
+			} else {
+				percent_complete=root.textContent;
+			}
+			if(0 != percent_complete) {
+				alert(lang.LANG_SERVICE_IS_NOT_AVAILABLE);
+			} else {
+				Loading(true);
+				var ajax_url;
+				var ajax_param;
+				var ajax_req;
+				switch(action) {
+					case 1:
+						state_to_expect = 1;
+						ajax_url = '../cgi/ipmi.cgi';
+						ajax_param = '?POWER_INFO.XML=(1,1)&time_stamp='+(new Date());
+						ajax_req = new Ajax.Request(
+							ajax_url,
+							{method: 'post', parameters: ajax_param, onComplete: GetPwrStatusHandler}//register callback function
+							);
+						break;
+					case 3:
+						state_to_expect = 1;
+						ajax_url = '../cgi/ipmi.cgi';
+						ajax_param = '?POWER_INFO.XML=(1,3)&time_stamp='+(new Date());
+						ajax_req = new Ajax.Request(
+							ajax_url,
+							{method: 'post', parameters: ajax_param, onComplete: GetPwrStatusHandler}//register callback function
+							);
+						break;
+					case 5:
+						state_to_expect = 0;
+						ajax_url = '../cgi/ipmi.cgi';
+						ajax_param = '?POWER_INFO.XML=(1,5)&time_stamp='+(new Date());
+						ajax_req = new Ajax.Request(
+							ajax_url,
+							{method: 'post', parameters: ajax_param, onComplete: GetPwrStatusHandler}//register callback function
+							);
+						break;
+				}
+			}
+		}
+	}
+	function PowerActionHandler() {
+		var url = '/cgi/upgrade_process.cgi';
+		var pars = 'fwtype=255&time_stamp='+(new Date()) ;
+		var myAjax = new Ajax.Request(
+					url,
+					{method: 'post',parameters:pars, onComplete: pollCallback1}
+					);
+	}
+	</script>
+	<!-- end of javascript functions -->
+</head>
+<body onload='PageInit()'>
+	<span class="LoadingStyle" id="loading"></span>
+	<table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+		<tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td><td><div class="mtitle">
+			<script>document.writeln(lang.LANG_SYS_INFO_CAPTION)</script></div>
+		</td>
+		</tr>
+		<tr><td><br></td><td colspan="3"><br></td></tr> 
+		<!--  Tony, 09/03/2012 Add host and user info  { -->
+		<!--  1st information   { -->
+		<table id="infotable" width="100%" border="0" cellspacing="0" cellpadding="0">
+			<tr>
+				<td align="left" width="230px">
+					<label class="labelhead">
+						<script>document.writeln(lang.LANG_SYS_INFO_FW_REV);</script>
+					</label>
+					<span id="fw_rev" class="labelhead"></span>
+				</td>
+				<td align="left">
+				<label class="labelhead">
+						<script>document.writeln(lang.LANG_SYS_INFO_IP_ADDRESS);</script>
+				</label>
+					<span id="ip_addr" class="labelhead"></span>
+				</td>
+			</tr>
+			<tr>
+				<td align="left" width="230px">
+					<label class="labelhead">
+						<script>document.writeln(lang.LANG_SYS_INFO_BUILD_TIME);</script>
+					</label>
+					<span id="build_time" class="labelhead"></span>
+				</td>
+				<td align="left">
+					<label class="labelhead">
+					<script>document.writeln(lang.LANG_SYS_INFO_MAC_ADDRESS);</script>
+					</label>
+					<span id="mac_addr" class="labelhead"></span>
+				</td>
+			</tr>
+		</table>
+		<!--  Tony, 09/03/2012 Add host and user info  } -->
+		<tr><td></td>
+			<td colspan="3">
+				<!-- below area is needed to modify by yourself -->
+				<table cellspacing="0" cellpadding="0" border="0" width="100%" bordercolor="#0000FF">
+				<tr><td>
+					<table width="400" border="0" cellspacing="0" cellpadding="0">
+					<tr><td height="5px"></td></tr>
+					<tr><td align="center">
+					<fieldset style="height:310px;">
+						<legend class="labelhead"><script>document.writeln(lang.LANG_SYS_INFO_REMOTE_CONSOLE_GROUP);</script></legend>
+						<div style="margin-top:3px;margin-bottom:3px;"><input type="button" class="btnStyle" id="capture_preview" $(TAG_DISABLE)/></div>
+						<img id="img1" src="" width="320px" height="256px" align="center" style="visibility:hidden"/>
+					</fieldset>
+					</td></tr>
+					<tr><td height="5px"></td></tr>
+					<tr><td align="center">
+						<fieldset style="height:65px">
+						<legend class="labelhead"><script>document.writeln(lang.LANG_SYS_INFO_PWR_CNTRL_GROUP);</script></legend>
+						<table>
+							<tr><td align="center">
+								<label class="labelhead" id="status_msg"></label>
+							</td></tr>
+							<tr><td align="center">
+							<input type="button" class="btnStyle" id="btn_poweron" align="left" $(TAG_DISABLE)/>
+							<input type="button" class="btnStyle" id="btn_powerdown" align="left" $(TAG_DISABLE)/>
+							<input type="button" class="btnStyle" id="btn_reset" align="left" $(TAG_DISABLE)/>
+							</td></tr>
+						</table>
+						</fieldset>
+					</td></tr>
+					</table>
+				</td></tr>
+				</table>
+			</td>
+		<tr>
+	</table>
+</body>
+</html>

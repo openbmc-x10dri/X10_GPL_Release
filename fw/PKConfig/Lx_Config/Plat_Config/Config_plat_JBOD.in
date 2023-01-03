@@ -1,0 +1,4 @@
+config CONFIG_PLATFORM_JBOD
+    depends on CONFIG_PLATFORM_AST2400X10
+    bool "JBOD Platform"
+    default n

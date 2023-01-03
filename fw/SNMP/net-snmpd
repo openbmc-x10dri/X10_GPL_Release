@@ -1,0 +1,43 @@
+#!/bin/sh
+
+source /etc/scripts/service
+
+load_default()
+{
+	cp /etc/defaults/snmpd.conf /nv/snmpd.conf
+}
+start_snmpd()
+{
+	if [ "$SNMP_SERVICE" == "0" ] || [ -z $SNMP_SERVICE ];then
+		return;
+	fi
+	if [ ! -f /nv/snmpd.conf ];then
+		load_default
+	fi
+	
+	echo "Starting SNMP daemon ....."
+	if [ -z "$SNMP_PORT" ];then
+		snmpd -c /nv/snmpd.conf
+	else 
+		snmpd --agentaddress=$SNMP_PORT -c /nv/snmpd.conf
+	fi
+}
+stop_snmpd()
+{
+    killall -9 snmpd 
+}
+
+case $1 in 
+    start)
+	start_snmpd
+    ;;
+    stop)
+	stop_snmpd && echo "Stop SNMP daemon .............."
+    ;;
+    restart)
+	stop_snmpd
+	start_snmpd
+    ;;
+    *)
+    ;;
+esac

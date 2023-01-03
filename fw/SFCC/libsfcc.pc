@@ -1,0 +1,8 @@
+libdir=${prefix}/lib
+includedir=${prefix}/include
+ 
+Name: libsfcc 
+Description: cimom client 
+Version:2.1.0
+Libs: -L${libdir} -lcmpisfcc -lcimcclient
+Cflags:-I${includedir}/  -I${includedir}/cimc -I${includedir}/CimClientLib

@@ -1,0 +1,948 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
+<head>
+	<META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+	<META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+	<META NAME="Super Micro Computer, Inc." CONTENT="(c) Super Micro Computer, Inc. 2014">
+	<title></title>
+	<link rel="stylesheet" href="../css/basic.css" type="text/css">
+	<script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script> 
+	<script language="javascript" src="../js/utils.js"></script> 
+<style type="text/css"> 
+.tbl { 
+  	border:0; 
+  	border-collpase:collpase; 
+  	width: 400px
+} 
+.table_th { 
+ 	background-color:#F2F6FF;
+	font-weight:bold;
+	cursor:default;
+   	height:1.6em;
+	font-size :12px;
+	text-align:left; 
+}
+.table_tr { 
+   	border-bottom: 1px solid #ccc;
+   	background:transparent;
+   	cursor:default;
+   	height:1.6em;
+   	font-size :12px;
+} 
+.table_td
+{
+	border-bottom: 1px solid #ccc;
+  	background:transparent;
+  	cursor:default;
+  	height:1.6em;
+  	font-size :12px;
+}
+.last_tr
+{
+	text-align:right;
+	border-bottom: none;
+	font-size :10px;
+}
+</style>
+<!-- power javascript start -->
+<script type="text/javascript">
+var mainPage 	= "../cgi/url_redirect.cgi?url_name=health";
+var expand 				= new Array();	
+var honrizon_num 		= 1;
+var vertical_num 		= 24;
+var select_group_idx 	= 0;
+var PhysicalHDD_dev    	= new Array();
+var LogicalHDD_dev		= new Array();
+var max_physical_hdd 	= 0;
+var Whichview  			= 0;
+var max_logical_hdd 	= 0;
+var gstyle = 'color:#0000FF;text-decoration:underline;cursor:pointer';
+var timeFormat = 0;
+function LSIReloadPage(originalRequest) {
+	if ((originalRequest.readyState == 4) && (originalRequest.status == 200)) {
+		Loading(false);
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var xmldoc=GetResponseXML(response);
+		if(xmldoc == null)
+		{
+			SessionTimeout();
+			return;
+		}
+		window.location.hash="#"+document.form0.lsi_select.selectedIndex;
+		location.reload(true);
+	}
+}
+function StartStopLocatePD(onoff, tblobj) {
+	if (1 == onoff) {
+		r = confirm(lang.LANG_SERVER_HEALTH_STORAGE_START_LOCATE_PD);
+	} else {
+		r = confirm(lang.LANG_SERVER_HEALTH_STORAGE_STOP_LOCATE_PD);
+	}
+	if (r == true) {
+		Loading(true);
+		window.document.body.scrollTop = 0;
+		window.document.documentElement.scrollTop = 0;
+		var tbl_obj = tblobj.parentNode.parentNode.parentNode.parentNode;
+		var phy_num = parseInt(tbl_obj.id,10).toString(16);
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'Set_LocatePD.XML=('+document.form0.lsi_select.selectedIndex+','+phy_num+')&active='+onoff+'&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(
+			url,
+			{method: 'post',parameters:pars, onComplete: LSIReloadPage}
+			);
+	}
+}
+function StartStopLocateLD(onoff, tblobj) {
+	if (1 == onoff) {
+		r = confirm(lang.LANG_SERVER_HEALTH_STORAGE_START_LOCATE_LD);
+	} else {
+		r = confirm(lang.LANG_SERVER_HEALTH_STORAGE_STOP_LOCATE_LD);
+	}
+	if (r == true) {
+		Loading(true);
+		window.document.body.scrollTop = 0;
+		window.document.documentElement.scrollTop = 0;
+		var tbl_obj = tblobj.parentNode.parentNode.parentNode.parentNode;
+		var vol_num = parseInt(tbl_obj.id,10).toString(16);
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'Set_LocateLD.XML=('+document.form0.lsi_select.selectedIndex+','+vol_num+')&active='+onoff+'&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(
+			url,
+			{method: 'post',parameters:pars, onComplete: LSIReloadPage}
+			);
+	}
+}
+function ChangePhysicalHDDState(tblobj) {
+	r = confirm(lang.LANG_SERVER_HEALTH_STORAGE_MAKE_PD_UG);
+	if (r == true) {
+		Loading(true);
+		window.document.body.scrollTop = 0;
+		window.document.documentElement.scrollTop = 0;
+		var tbl_obj = tblobj.parentNode.parentNode.parentNode.parentNode;
+		var phy_num = parseInt(tbl_obj.id,10).toString(16);
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'Set_PDState.XML=('+document.form0.lsi_select.selectedIndex+','+phy_num+')&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(
+			url,
+			{method: 'post',parameters:pars, onComplete: LSIReloadPage}
+			);
+	}
+}
+function ShowStatusColor(dev_obj,dev_num) {
+	var tbl  = document.createElement("table");
+	var tbody  = document.createElement('tbody');
+	tbl.appendChild(tbody);
+	var row  = document.createElement("tr");
+	var cell  = document.createElement("td");
+	tbl.setAttribute('width',"20");
+	tbl.setAttribute('height',"20");
+	//tbl.setAttribute('border',"1");
+	if (isHDDExisted(dev_obj,dev_num)) {
+		if (isPhysicalHDDErr(dev_obj,dev_num)) {
+			cell.style.cssText = 'background-color:red';
+		} else if (isPhysicalHDDDegraded(dev_obj,dev_num)) {
+			cell.style.cssText = 'background-color:yellow';
+		} else {
+			cell.style.cssText = 'background-color:green';
+		}
+	} else {
+		cell.style.cssText = 'background-color:F2F6FF';
+	}
+	row.appendChild(cell);
+	tbody.appendChild(row);
+	return tbl;
+}
+function add_row(dev_obj,tbl_obj,attr,content,value)
+{
+	var row;   
+	var cell;
+	var textNode;
+	var span;
+	var dev_num = tbl_obj.id;
+	row  = document.createElement("tr");
+	if (attr.indexOf("th") != -1) {	
+		cell = document.createElement("th");
+		cell.style.cssText = 'width:110px';
+		cell.className = "table_th";
+		cell.appendChild(ShowStatusColor(dev_obj,dev_num));
+		row.appendChild(cell);
+		cell  = document.createElement("th");
+		cell.style.cssText = 'width:280px';
+		cell.className = "table_th";
+		textNode = document.createTextNode(content);
+		cell.appendChild(textNode);
+		row.appendChild(cell);
+		cell  = document.createElement("th");
+		cell.style.cssText = 'width:10px';
+		cell.className = "table_th";
+		if (isHDDExisted(dev_obj,dev_num)) {
+			span = document.createElement("span");
+			span.setAttribute('title',lang.LANG_SERVER_HEALTH_STORAGE_LOCATOR_LED);
+			span.innerHTML = "&#9646;";
+			if ((Whichview == 0) && (dev_obj[dev_num][18] == 1)) {
+				span.style.cssText = 'color:red';
+				if ($(TAG_ADMIN_ACTION)) {
+					span.style.cssText += 'cursor:pointer;'
+					span.onclick = function () {
+						StartStopLocatePD(0, this);
+					}
+				}
+			} else if ((Whichview == 1) && (dev_obj[dev_num][10] == 1)) {
+				span.style.cssText = 'color:blue;';
+				if ($(TAG_ADMIN_ACTION)) {
+					span.style.cssText += 'cursor:pointer;'
+					span.onclick = function () {
+						StartStopLocateLD(0, this);
+					}
+				}
+			} else {
+				span.style.cssText = 'color:lightgray;';
+				if ($(TAG_ADMIN_ACTION)) {
+					span.style.cssText += 'cursor:pointer;'
+					if (Whichview == 0) {
+						span.onclick = function () {
+							StartStopLocatePD(1, this);
+						}
+					} else {
+						span.onclick = function () {
+							StartStopLocateLD(1, this);
+						}
+					}
+				}
+			}
+			cell.appendChild(span);
+        }
+		row.appendChild(cell);
+	} else {
+		cell = document.createElement(attr);
+		//cell.setAttribute('colSpan',"2");
+		cell.className = "table_td";
+		cell.style.cssText = 'width:110px';
+		textNode = document.createTextNode(content);
+		cell.appendChild(textNode);
+		row.appendChild(cell);
+		cell  = document.createElement(attr);
+		cell.setAttribute('colSpan',"2");
+		cell.className = "table_td";
+		textNode = document.createTextNode(value);
+		cell.appendChild(textNode);
+		if ($(TAG_ADMIN_ACTION)) {
+			if ((content.indexOf("firmware state") != -1) && (value.indexOf("Unconfigured bad drive") != -1)) {
+				var text = document.createTextNode(" (");
+				cell.appendChild(text);
+				span = document.createElement("span");
+				span.innerHTML = "make UG";
+				span.style.cssText = gstyle;
+				span.onclick = function () {
+					ChangePhysicalHDDState(this);
+				}
+				cell.appendChild(span);
+				text = document.createTextNode(")");
+				cell.appendChild(text);
+			}
+		}
+		row.appendChild(cell);
+	}
+	return row;
+}
+function AddLogicalVolume(tblobj) {
+	var tbl_obj = tblobj.parentNode.parentNode.parentNode.parentNode;
+	var dev_num = tbl_obj.id;
+	location.href = '../cgi/url_redirect.cgi?url_name=servh_storage_add#'+document.form0.lsi_select.selectedIndex+","+dev_num;
+}
+function show_more(devObj,tblobj)
+{
+	var hdd_info1 = new Array("Vendor:","ModelName:","Revision:","Serial Number:","LinkSpeed:",
+							  "firmware state:","Other Error Count:","Predicted Fail Count:",
+							  "Media Error Count:");
+	var hdd_extra_info1 = new Array("Progress:","Remaining Time:");
+	var hdd_extra_info2 = new Array("Progress:","Elapsed Time:");
+	var tbl_obj = tblobj.parentNode.parentNode.parentNode.parentNode;
+	var tb_obj = tblobj.parentNode.parentNode.parentNode;
+	var dev_num = tbl_obj.id;
+	var new_row;
+	if (expand[dev_num] == 0) {
+	   	tbl_obj.deleteRow(-1);
+		var extra = 0;
+	   	for (i=0; i<hdd_info1.length; i++) {
+			new_row = add_row(devObj,tbl_obj,"td",hdd_info1[i],PhysicalHDD_dev[dev_num][3+i]);
+			if (hdd_info1[i].indexOf("firmware state") != -1) {
+				if ((PhysicalHDD_dev[dev_num][3+i].indexOf("Configured-drive is rebuilding") != -1) || (PhysicalHDD_dev[dev_num][3+i].indexOf("drive is getting copied") != -1)){
+					extra = 1;
+				}
+			}
+	    	tb_obj.appendChild(new_row);
+		}
+		if (extra) {
+			var extra_info;
+			if (1 == timeFormat) {
+				extra_info = hdd_extra_info1;
+			} else {
+				extra_info = hdd_extra_info2;
+			}
+			for (i=0; i<extra_info.length; i++) {
+				new_row = add_row(devObj,tbl_obj,"td",extra_info[i],PhysicalHDD_dev[dev_num][19+i]);
+				tb_obj.appendChild(new_row);
+			}
+		}
+		new_row = add_lastrow(devObj,"less",dev_num);
+		tb_obj.appendChild(new_row);
+		expand[dev_num]  = 1;
+	} else {
+	   	var row_count = tbl_obj.rows.length;
+	   	//skip temperature
+	   	for (i=4; i<row_count; i++) {
+	    	tbl_obj.deleteRow(-1);
+	    }
+	    new_row = add_lastrow(devObj,"more",dev_num);
+	   	tb_obj.appendChild(new_row);
+	    expand[dev_num]  = 0;
+	}
+}
+function add_lastrow(devObj,content,dev_num)
+{
+	var row,cell,span;
+	row  = document.createElement("tr");
+	cell = document.createElement("td");
+	cell.className = "last_tr";
+	cell.setAttribute('colSpan',"3");
+	if ($(TAG_ADMIN_ACTION)) {
+		if ((PhysicalHDD_dev[dev_num][0].indexOf("Present") != -1) &&
+			(PhysicalHDD_dev[dev_num][8].indexOf("Configured-drive is online") != -1) &&
+			(PhysicalHDD_dev[dev_num][15] != 65535) &&
+			(PhysicalHDD_dev[dev_num][16] != 0))
+		{
+			span = document.createElement("span");
+			span.innerHTML = "add";
+			span.style.cssText = gstyle;
+			span.onclick = function () {
+				AddLogicalVolume(this);
+			}
+			cell.appendChild(span);
+			var text = document.createTextNode(" / ");
+			cell.appendChild(text);
+		}
+	}
+	span = document.createElement("span");
+	span.innerHTML = content;
+	span.style.cssText = gstyle;
+	span.onclick = function () {
+		show_more(devObj,this);
+	}
+	cell.appendChild(span);
+	row.appendChild(cell);	
+	return row;
+}
+function create_table(table_id)
+{
+	var table=document.createElement('table');
+	table.setAttribute('id',table_id);
+	table.className = "tbl";
+	//table.setAttribute('border',"1");
+	//table.style.cssText = 'border-collapse:collapse';
+	return table;
+}
+function create_select_box()
+{
+	var select2    = document.form0.hdd_select; 
+	var hdd_nums   = (Whichview == 0)? max_physical_hdd : max_logical_hdd;
+	var pages_num  = Math.floor( hdd_nums / (vertical_num * honrizon_num));
+	var reminder   = hdd_nums % (vertical_num * honrizon_num);
+	var drive_name = (Whichview == 0) ? lang.LANG_SERVER_HEALTH_STORAGE_PHYDRIVE:lang.LANG_SERVER_HEALTH_STORAGE_LOGDRIVE;
+	pages_num 	  = (reminder != 0 ) ? pages_num + 1 : pages_num;
+	select_group_idx = 0;
+	for ( i = 0;i < pages_num ; i++)
+	{
+		var num_start = (i == 0) ? 0 : i * (honrizon_num * vertical_num) ;
+		
+		if ( i == (pages_num - 1) && reminder )
+		{
+			var num_end   =  num_start + reminder - 1;
+		}
+		else 
+			var num_end   =  num_start + (honrizon_num * vertical_num) - 1;
+		select2.options[i] = new Option(drive_name+' ' + num_start + '~' + num_end ); 
+	}
+	document.form0.hdd_select.onchange = function()
+	{
+		select_group_idx = this.selectedIndex;
+		document.getElementById("table1").innerHTML="";
+		if (Whichview == 0)
+			ShowPhysicalHDDinfo();
+		else 
+			ShowLogicalHDDinfo();	
+	}	
+}
+function DelAlloptionsSelectBox()
+{
+	var select2    = document.form0.hdd_select; 
+	for (i = select2.length - 1; i>=0; i--) {
+      	select2.remove(i);
+  	}
+}
+function GetPhysicalHDDView()
+{
+	Whichview = 0;
+	HDDViewObj1.checked = true;
+	HDDViewObj2.checked = false;
+	Clear_page();
+	//create_select_box();
+	GetPhysicalHDDInfo(document.form0.lsi_select.selectedIndex);
+}
+function GetLogicalHDDView()
+{
+	Whichview = 1;
+	HDDViewObj2.checked = true;
+	HDDViewObj1.checked = false;
+	Clear_page();
+	//create_select_box();
+	GetLogicalHDDInfo(document.form0.lsi_select.selectedIndex);
+}
+function GetLSINumInfo()
+{
+	Loading(true);
+	var url = '/cgi/ipmi.cgi';
+	var pars = 'Get_LSINumInfo.XML=(0,0)&time_stamp='+(new Date()) ; //(0,0) ask for privilege
+	var myAjax = new Ajax.Request(
+		url,
+		{method: 'post',parameters:pars, onComplete: LSINuminfoResp}//reigister callback function
+		);
+}
+function GetPhysicalHDDInfo(idx)
+{
+	Loading(true);
+	var url = '/cgi/ipmi.cgi';
+	var pars = 'Get_PhysicalHDDInfo.XML=('+idx+',0)&time_stamp='+(new Date()) ; //(0,0) ask for privilege
+	var myAjax = new Ajax.Request(
+		url,
+		{method: 'post',parameters:pars, onComplete: PhysicalHDDinfoResp}//reigister callback function
+		);
+}
+function GetLogicalHDDInfo(idx)
+{
+	Loading(true);
+	var url = '/cgi/ipmi.cgi';
+	var pars = 'Get_LogicalHDDInfo.XML=('+idx+',0)&time_stamp='+(new Date()) ; //(0,0) ask for privilege
+	var myAjax = new Ajax.Request(
+		url,
+		{method: 'post',parameters:pars, onComplete: LogicalHDDInfoResp}//reigister callback function
+		);
+}
+function GetfwState(val) {
+	switch (val) {
+		case 0x00:
+			return "Unconfigured good drive";
+		case 0x01:
+			return "Unconfigured bad drive";
+		case 0x02:
+			return "Hot spare drive";
+		case 0x10:
+			return "Configured-good drive(data invalid)";
+		case 0x11:
+			return "Configured-bad drive(data invalid)";
+		case 0x14:
+			return "Configured-drive is rebuilding";
+		case 0x18:
+			return "Configured-drive is online";
+		case 0x20:
+			return "drive is getting copied";
+		case 0x40: 
+			return "drive is exposed and controlled by host";
+		case 0x80:
+			return "UnConfigured - shielded";
+		case 0x82:
+			return "Hot Spare - shielded";
+		case 0x90:
+			return "Configured - shielded";
+		default:
+			return "";
+	}	
+}
+function GetLinkSpeed(val) {
+	switch(val) {
+		case 0:
+			return "Uknown Speed";
+		case 1:
+			return "1.5 Gb/s";
+		case 2:
+			return "3.0 Gb/s";
+		case 3:
+			return "6.0 Gb/s";
+		case 4:
+			return "12.0 Gb/s";
+		default:
+			return "";
+	}
+}
+function GetStatus(val) {
+	switch (val) {
+		case 0:
+			return "Not present"
+		case 1: 
+			return "Present";
+		case 2:
+			return "Error";	
+		case 3:
+			return "Partially Degraded"; 
+		default:
+			return "";
+	}
+}
+function GetStripSize(val) {
+	switch (val) {
+		case 4:
+			return "8K";
+		case 5: 
+			return "16K";
+		case 7:
+			return "64K";
+		case 8:
+			return "128K";
+		case 9:
+			return "256K";
+		case 10:
+			return "512K";
+		case 11:
+			return "1MB";
+		default:
+			return "Unknown";
+	}
+}
+function getLogicalState(val) {
+	switch (val) {
+		case 0:
+			return "Offine"
+		case 1: 
+			return "Partially Degraded";
+		case 2:
+			return "Degraded";
+		case 3:
+			return "Optimal";
+		default:
+			return "";
+	}
+}
+function LSINuminfoResp(originalRequest) {
+	if ((originalRequest.readyState == 4) && (originalRequest.status == 200)) {
+		Loading(false);
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var xmldoc=GetResponseXML(response);
+		if(xmldoc == null) {
+			SessionTimeout();
+			return;
+		}
+		var devno = 0;
+		if (window.location.hash) {
+			var param = window.location.hash.split("#");
+			if (param[1].length != 0) {
+				devno = param[1];
+			}
+		}
+		var Root = xmldoc.documentElement;
+		var LSIInfo = Root.getElementsByTagName('LSIInfo');
+		var num = LSIInfo[0].getAttribute("num");
+		var select1 = document.form0.lsi_select;
+		for (i=0; i<num; i++) {
+			select1.options[i] = new Option('Device'+i,i,false,(i==devno?true:false));
+		}
+		if (num > 0) {
+			var style = 'color:#0000FF;cursor:pointer';
+			var foo = document.getElementById("ctrl_info");
+			var t = document.createTextNode(" ");
+			foo.appendChild(t);
+			var span = document.createElement("span");
+			span.setAttribute('title',lang.LANG_SERVER_HEALTH_STORAGE_CONTROLLER_INFO);
+			span.innerHTML = "&#10162;";
+			span.style.cssText = style;
+			span.onclick = function () {
+				location.href = '../cgi/url_redirect.cgi?url_name=servh_storage_ctrl#'+document.form0.lsi_select.selectedIndex;
+			}
+			foo.appendChild(span);
+		}
+		document.form0.lsi_select.onchange = function() {
+			if (Whichview == 0) {
+				GetPhysicalHDDView();
+			} else {
+				GetLogicalHDDView();
+			}
+		}
+		GetPhysicalHDDInfo(devno);
+	}
+}
+function PhysicalHDDinfoResp(originalRequest) {
+	if ((originalRequest.readyState == 4) && (originalRequest.status == 200)) {
+		Loading(false);
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var xmldoc=GetResponseXML(response);
+		if(xmldoc == null) {
+			SessionTimeout();
+			return;
+		}
+		var enable			= 0;
+		var showbutton		= 0;
+		var Root			= xmldoc.documentElement;
+   		var HDDIndoNode		= Root.getElementsByTagName('HDDInfo');
+   		var HDDNode 		= HDDIndoNode[0].getElementsByTagName('HDD');
+   		max_physical_hdd    = HDDIndoNode[0].getAttribute("num");
+		var IncompleteForeignCfg = HDDIndoNode[0].getAttribute("IncompForeignCfg");
+		timeFormat = HDDIndoNode[0].getAttribute("TimeFormat");
+   		for (i=0; i<max_physical_hdd ;i++) {
+   			PhysicalHDD_dev[i] 	    = new Array();
+			var HDDstatus = parseInt(HDDNode[i].getAttribute("status"),16);
+   			PhysicalHDD_dev[i][0]   = GetStatus(HDDstatus);
+   			var temp = parseInt(HDDNode[i].getAttribute("temperature"),16);
+   			if (temp == 0 || temp == 255) {
+   				PhysicalHDD_dev[i][1]   = "N/A";
+   			} else {
+   				PhysicalHDD_dev[i][1]   = parseInt(HDDNode[i].getAttribute("temperature"),16)+" degrees C";
+			}
+			PhysicalHDD_dev[i][2]   = parseInt(HDDNode[i].getAttribute("CoercedSize"),16)+" GB";
+			// Don't change - start
+   			PhysicalHDD_dev[i][3]   = HDDNode[i].getAttribute("Vendor");
+   			PhysicalHDD_dev[i][4]   = HDDNode[i].getAttribute("ModelName");
+   			PhysicalHDD_dev[i][5]   = HDDNode[i].getAttribute("Revision");
+			PhysicalHDD_dev[i][6]   = HDDNode[i].getAttribute("SN");
+   			PhysicalHDD_dev[i][7]   = GetLinkSpeed(parseInt(HDDNode[i].getAttribute("LinkSpeed"),16));
+			var FWstatus = parseInt(HDDNode[i].getAttribute("fwState"),16);
+   			PhysicalHDD_dev[i][8]   = GetfwState(FWstatus);
+   			PhysicalHDD_dev[i][9]   = parseInt(HDDNode[i].getAttribute("OtherErrCount"),16);
+   			PhysicalHDD_dev[i][10]   = parseInt(HDDNode[i].getAttribute("PredFailCount"),16);
+   			PhysicalHDD_dev[i][11]  = parseInt(HDDNode[i].getAttribute("MediaErrCount"),16);
+			// Don't change - end
+   			PhysicalHDD_dev[i][12]  = parseInt(HDDNode[i].getAttribute("LastPredFailEventSeqNum"),16);
+   			PhysicalHDD_dev[i][13]  = parseInt(HDDNode[i].getAttribute("enclosureID"),16);
+   			PhysicalHDD_dev[i][14]  = HDDNode[i].getAttribute("Foreign");
+   			PhysicalHDD_dev[i][15]  = parseInt(HDDNode[i].getAttribute("arrayID"),16);
+   			PhysicalHDD_dev[i][16]  = parseInt(HDDNode[i].getAttribute("FreeSize"),16);
+			PhysicalHDD_dev[i][17]  = parseInt(HDDNode[i].getAttribute("Erase"),16);
+			PhysicalHDD_dev[i][18]  = parseInt(HDDNode[i].getAttribute("Locate"),16);
+			PhysicalHDD_dev[i][19]  = parseInt(HDDNode[i].getAttribute("Progress"),16)+" %";
+			PhysicalHDD_dev[i][20]  = parseInt(HDDNode[i].getAttribute("Time"),16)+" sec.";
+			if (FWstatus == 0) {
+				if (PhysicalHDD_dev[i][14] == 1) {
+					PhysicalHDD_dev[i][8] += " (Foreign)";
+				}
+				if (PhysicalHDD_dev[i][17] == 1) {
+					PhysicalHDD_dev[i][8] += " (Erasing)";
+				}
+			}
+			if ((HDDstatus == 1) && (FWstatus == 0) && (PhysicalHDD_dev[i][14] == 0) && (PhysicalHDD_dev[i][17] == 0)) {
+				enable = 1;
+			}
+			if (PhysicalHDD_dev[i][14] == 1) {
+				showbutton = 1;
+			}
+			expand[i]	    = 0;
+		}
+		if ($(TAG_ADMIN_ACTION)) {
+			var element = document.createElement("input");
+			element.type = 'button';
+			element.value = lang.LANG_SERVER_HEALTH_STORAGE_CREATE_LOGICAL_VOLUME;
+			element.onclick = function() {
+				location.href = '../cgi/url_redirect.cgi?url_name=servh_storage_create#'+document.form0.lsi_select.selectedIndex;
+			};
+			if (enable == 0) {
+				element.disabled = true;
+			}
+			var foo = document.getElementById("act_btn");
+			var t = document.createTextNode(" ");
+			foo.appendChild(t);
+			foo.appendChild(element);
+			if (showbutton == 1) {
+				element = document.createElement("input");
+				element.type = 'button';
+				element.value = lang.LANG_SERVER_HEALTH_STORAGE_IMPORT_FOREIGN_CONFIGS;
+				element.onclick = function() {
+					ModForeignConfigs(document.form0.lsi_select.selectedIndex,true);
+				};
+				foo = document.getElementById("imp_btn");
+				t = document.createTextNode(" ");
+				foo.appendChild(t);
+				foo.appendChild(element);
+				element = document.createElement("input");
+				element.type = 'button';
+				element.value = lang.LANG_SERVER_HEALTH_STORAGE_CLEAR_FOREIGN_CONFIGS;
+				element.onclick = function() {
+					ModForeignConfigs(document.form0.lsi_select.selectedIndex,false);
+				};
+				foo = document.getElementById("clr_btn");
+				t = document.createTextNode(" ");
+				foo.appendChild(t);
+				foo.appendChild(element);
+			}
+		}
+   		create_select_box();
+		ShowPhysicalHDDinfo();
+		if ($(TAG_ADMIN_ACTION) && (IncompleteForeignCfg == 1)) {
+			alert(lang.LANG_SERVER_HEALTH_STORAGE_INCOMPLETE_FOREIGN);
+		}
+	}
+}
+function LogicalHDDInfoResp(originalRequest) {
+	if (originalRequest.readyState == 4 && originalRequest.status == 200) {
+		Loading(false);
+		var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+		var xmldoc	 = GetResponseXML(response);
+		if(xmldoc == null) {
+			SessionTimeout();
+			return;
+		}
+		var enable			= 0;
+		var Root			= xmldoc.documentElement;
+   		var HDDIndoNode		= Root.getElementsByTagName('LogicHDDInfo');
+   		var HDDNode 		= HDDIndoNode[0].getElementsByTagName('LogicHDD');
+   		max_logical_hdd		= HDDIndoNode[0].getAttribute("num");
+   		for (i=0; i<max_logical_hdd; i++) {
+   			LogicalHDD_dev[i] 	   = new Array();
+			var VDDstatus = parseInt (HDDNode[i].getAttribute("status"),16);
+   			LogicalHDD_dev[i][0]   = GetStatus(VDDstatus);
+   			LogicalHDD_dev[i][1]   = parseInt (HDDNode[i].getAttribute("size"),16)+ " GB";
+   			LogicalHDD_dev[i][2]   = parseInt (HDDNode[i].getAttribute("PRL"),16);
+   			LogicalHDD_dev[i][3]   = parseInt (HDDNode[i].getAttribute("RLQ"),16);
+   			LogicalHDD_dev[i][4]   = parseInt (HDDNode[i].getAttribute("SRL"),16);
+   			LogicalHDD_dev[i][5]   = GetStripSize(parseInt (HDDNode[i].getAttribute("StripeSize"),16));
+   			LogicalHDD_dev[i][6]   = parseInt (HDDNode[i].getAttribute("NumDrives"),16);
+   			LogicalHDD_dev[i][7]   = parseInt (HDDNode[i].getAttribute("SpanDepth"),16);
+   			LogicalHDD_dev[i][8]   = getLogicalState(parseInt (HDDNode[i].getAttribute("state"),16));
+			LogicalHDD_dev[i][9]   = (HDDNode[i].getAttribute("Name").length?HDDNode[i].getAttribute("Name"):"");
+   			LogicalHDD_dev[i][10]  = parseInt (HDDNode[i].getAttribute("Locate"),16);
+			if (VDDstatus != 0) {
+				enable = 1;
+			}
+   		}
+		if ($(TAG_ADMIN_ACTION)) {
+			var element = document.createElement("input");
+            element.type = 'button';
+			element.value = lang.LANG_SERVER_HEALTH_STORAGE_CLEAR_CONFIGURATION;
+			if (enable == 0) {
+				element.disabled = true;
+			}
+			element.onclick = function() {
+				DeleteAllLogicalVolume(document.form0.lsi_select.selectedIndex);
+			};
+
+			var foo = document.getElementById("act_btn");
+			var t = document.createTextNode(" ");
+			foo.appendChild(t);
+			foo.appendChild(element);
+		}
+   		create_select_box();
+		ShowLogicalHDDinfo();
+	}
+}
+function isHDDExisted(HDD_dev,dev_num) {
+	 return (HDD_dev[dev_num][0].indexOf("Not present") == -1) ? 1 : 0;
+}
+function isPhysicalHDDErr(HDD_dev,dev_num) {
+	 return (HDD_dev[dev_num][0].indexOf("Error") != -1) ? 1 : 0;
+}
+function isPhysicalHDDDegraded(HDD_dev,dev_num) {
+     return (HDD_dev[dev_num][0].indexOf("Partially Degraded") != -1) ? 1 : 0;
+}
+function PageInit() {
+	HDDViewObj1 = document.getElementById('HDD_view1');
+	HDDViewObj2 = document.getElementById('HDD_view2');
+	Whichview   = 0;
+	HDDViewObj1.checked = true;
+	$(TAG_ALERT)
+	$(TAG_MAINPAGE)
+	GetLSINumInfo();
+}
+function ShowPhysicalHDDinfo()
+{
+	var tbl,row,cell,newNode;
+	var outer_cell;
+	var dev_num;
+	var hdd_info  = new Array("Status:","Temperature:","Capacity:");
+	var outer_tbl  = create_table("outer_tbl");
+	var tbody = document.createElement("tbody");
+	outer_tbl.appendChild(tbody);
+	var outer_row  = document.createElement("tr");
+	dev_num        = select_group_idx * vertical_num;
+	for (k=0; k<honrizon_num; k++) {
+		outer_cell = document.createElement("td");
+		if (k != 0) {
+			outer_cell.innerText =" ";
+			outer_row.appendChild(outer_cell);
+		}
+		outer_cell = document.createElement("td");
+		for (i=0; i<vertical_num; i++,dev_num++) {
+			if (dev_num>=max_physical_hdd) {
+				break;
+			}
+			tbl  = create_table(dev_num);
+			tb = document.createElement("tbody");
+			tbl.appendChild(tb);
+			if (isHDDExisted(PhysicalHDD_dev,dev_num)) {
+				row  = add_row(PhysicalHDD_dev,tbl,"th",lang.LANG_SERVER_HEALTH_STORAGE_PHYDRIVE + dev_num + " Enclosure ID: " + PhysicalHDD_dev[dev_num][12],"");
+			} else {
+				row  = add_row(PhysicalHDD_dev,tbl,"th",lang.LANG_SERVER_HEALTH_STORAGE_PHYDRIVE + dev_num,"");
+			}
+			tb.appendChild(row);
+			for (j=0; j<hdd_info.length; j++) {
+				//skip temperature here
+				//if (j == 1) {
+				//	continue;
+				//}
+				row = add_row(PhysicalHDD_dev,tbl,"td",hdd_info[j],PhysicalHDD_dev[dev_num][j]);
+				tb.appendChild(row);
+				//if the hdd doesn't exist, more info doesn't show on web.
+				if (!isHDDExisted(PhysicalHDD_dev,dev_num)) {
+					break;
+				}
+			}
+			//if the hdd exists, web shows link to show more info.
+			if (isHDDExisted(PhysicalHDD_dev,dev_num)) {
+				row = add_lastrow(PhysicalHDD_dev,"more",dev_num);
+				tb.appendChild(row);
+			}
+			outer_cell.appendChild(tbl);
+			newNode   = document.createElement("p");
+			outer_cell.appendChild(newNode);
+			outer_row.appendChild(outer_cell);
+		}
+ 	}
+ 	tbody.appendChild(outer_row);
+ 	document.getElementById("table1").appendChild(outer_tbl);
+}
+function DeleteLogicalVolume(tblobj) {
+	var r = confirm(lang.LANG_SERVER_HEALTH_STORAGE_DELETE_LOGICAL_VOLUME);
+	if (r == true) {
+		Loading(true);
+		var tbl_obj = tblobj.parentNode.parentNode.parentNode.parentNode;
+		var vol_num = parseInt(tbl_obj.id,10).toString(16);
+        window.document.body.scrollTop = 0;
+        window.document.documentElement.scrollTop = 0;
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'Del_LogicalHDD.XML=('+document.form0.lsi_select.selectedIndex+','+vol_num+')&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(
+			url,
+			{method: 'post',parameters:pars, onComplete: LSIReloadPage}
+			);
+	}
+}
+function DeleteAllLogicalVolume(dev_id) {
+	var r = confirm(lang.LANG_SERVER_HEALTH_STORAGE_DELETE_ALL_VOLUMES);
+	if (r == true) {
+		Loading(true);
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'Del_LSIConfiguration.XML=('+dev_id+',0)&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(
+			url,
+			{method: 'post',parameters:pars, onComplete: LSIReloadPage}
+			);
+	}
+}
+function ModForeignConfigs(dev_id,option) {
+	var o = (option==true?1:0);
+	var r = confirm(lang.LANG_SERVER_HEALTH_STORAGE_CONFIRM);
+	if (r == true) {
+		Loading(true);
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'Mod_LSIForeignConfig.XML=('+dev_id+','+o+')&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(
+			url,
+			{method: 'post',parameters:pars, onComplete: LSIReloadPage}
+			);
+	}
+}
+function ShowLogicalHDDinfo()
+{
+	var tbl,row,cell,newNode,span;
+	var outer_cell;
+	var dev_num;
+	var hdd_info  = new Array("Status:","Capacity:","Primary Raid Level:","Raid Level Qaulifier:",
+							  "Secondary Raid Level:","LD strip size:","The num of Drives:","SpanDepth:",
+							  "State:","Name:");
+	var outer_tbl  = create_table("outer_tbl");
+	var tbody = document.createElement("tbody");
+	outer_tbl.appendChild(tbody);
+	var outer_row  = document.createElement("tr");
+	dev_num        = select_group_idx * vertical_num;
+	for (k=0 ;k<honrizon_num; k++) {
+		outer_cell = document.createElement("td");
+		if ( k != 0) {
+			outer_cell.innerText =" ";
+			outer_row.appendChild(outer_cell);
+		}
+		outer_cell = document.createElement("td");
+		for (i=0 ; i<vertical_num; i++,dev_num++) {
+			if (dev_num >= max_logical_hdd) {
+				break;
+			}
+			tbl  = create_table(dev_num);
+			tb = document.createElement("tbody");
+			tbl.appendChild(tb);
+			row  = add_row(LogicalHDD_dev,tbl,"th",lang.LANG_SERVER_HEALTH_STORAGE_LOGDRIVE + dev_num ,"");
+			tb.appendChild(row);
+			for (j=0; j<hdd_info.length; j++) {
+				//if the hdd doesn't exist, more info doesn't show on web.
+				row = add_row(LogicalHDD_dev,tbl,"td",hdd_info[j],LogicalHDD_dev[dev_num][j] );
+				tb.appendChild(row);
+				if (!isHDDExisted(LogicalHDD_dev,dev_num)) {
+					break;
+				}
+			}
+			if ($(TAG_ADMIN_ACTION) && isHDDExisted(LogicalHDD_dev,dev_num)) {
+				row = document.createElement("tr");
+				var cell = document.createElement("td");
+				cell.className = "last_tr";
+				cell.setAttribute('colSpan',"3");
+				span = document.createElement("span");
+				span.innerHTML = "delete";
+				span.style.cssText = gstyle;
+				span.onclick = function () {
+					DeleteLogicalVolume(this);
+				}
+				cell.appendChild(span);
+				row.appendChild(cell);
+				tb.appendChild(row);
+			}
+			outer_cell.appendChild(tbl);
+			newNode   = document.createElement("p");
+			outer_cell.appendChild(newNode);
+			outer_row.appendChild(outer_cell);
+		}
+	}
+ 	tbody.appendChild(outer_row);
+ 	document.getElementById("table1").appendChild(outer_tbl);
+}
+function Clear_page()
+{
+	document.getElementById("table1").innerHTML="";
+	document.getElementById("act_btn").innerHTML="";
+	document.getElementById("imp_btn").innerHTML="";
+	document.getElementById("clr_btn").innerHTML="";
+	DelAlloptionsSelectBox();
+}
+</script>
+</head>
+<body onload="PageInit()">
+	<span class="LoadingStyle" id="loading"></span>
+    <table border="0" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td><td><div class="mtitle"><script>document.writeln(lang.LANG_SERVER_HEALTH_STORAGE_CAPTION)</script></div></td></tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr><td></td>
+            <td><table class="boxSection"><tr><td><div class="textA"><script>document.writeln(lang.LANG_SERVER_HEALTH_STORAGE_DESC)</script></div></td><tr></table></td>
+        </tr>
+        <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+        <tr><td></td>
+			<td>
+			<form name="form0"><select name="lsi_select"><option selected value="0"></option></select><span id="act_btn"></span><span id="imp_btn"></span><span id="clr_btn"></span><span id="ctrl_info"></span><br/>
+        	<INPUT TYPE=RADIO NAME="HDD_view1" id="HDD_view1" VALUE="0" onclick="GetPhysicalHDDView()" $(TAG_DISABLE)/><script>document.writeln(lang.LANG_SERVER_HEALTH_STORAGE_PHYDRIVE_VIEW)</script>
+        	<INPUT TYPE=RADIO NAME="HDD_view2" id="HDD_view2" VALUE="1" onclick="GetLogicalHDDView()" $(TAG_DISABLE)/><script>document.writeln(lang.LANG_SERVER_HEALTH_STORAGE_LOGDRIVE_VIEW)</script><br/>
+        	<label class="Categorytext">
+				<script>document.writeln(lang.LANG_SERVER_HEALTH_STORAGE_SEL);</script>
+			</label>
+        	<select name="hdd_select">
+				<option selected value="0">
+				</option>
+			</select>
+			</form>
+        	<div id="table1"></div>
+			</td></tr>
+	</table>
+</body>
+</html>

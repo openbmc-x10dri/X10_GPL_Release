@@ -1,0 +1,12 @@
+CROSS_COMPILE = $(shell pwd)/ToolChain/Host/$(MYMCU)/x-tools/arm-linux/bin/arm-linux-
+ARCH=arm
+CROSS_COMPILE_BIN_DIR=$(shell pwd)/ToolChain/Host/$(MYMCU)/x-tools/arm-linux/bin
+TC_LOCAL=$(shell pwd)/ToolChain/Host/$(MYMCU)/x-tools/arm-linux/arm-linux
+PATH:=$(CROSS_COMPILE_BIN_DIR):$(subst /aspeed/x-tools/arm-linux/bin:,,$(PATH))
+
+#u-boot source path
+BL_VERSION=2009.01
+BL_SRC_DIR=$(PRJ_PATH)/BootLoader/Host/$(MYMCU)/u-boot-$(BL_VERSION)
+BL_TAR_BALL=$(PRJ_PATH)/BootLoader/Host/$(MYMCU)/u-boot-$(BL_VERSION).tar.gz
+
+export TC_LOCAL BL_TAR_BALL BL_SRC_DIR

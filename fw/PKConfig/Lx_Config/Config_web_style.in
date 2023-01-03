@@ -1,0 +1,9 @@
+menu "WEB STYLE"
+choice
+    prompt "WEB SAMPLE Choice"
+    default CONFIG_SUPERMICRO_2010
+
+source PKConfig/Lx_Config/Web_Config/Config_Supermicro_2010.in
+
+endchoice
+endmenu

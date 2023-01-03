@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+    <META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+    <title></title>
+    <link rel="stylesheet" href="../css/basic.css" type="text/css">
+    <script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script>
+	<script language="javascript" src="../js/utils.js"></script> 
+<script type="text/javascript">
+	function PageInit()
+	{
+	 	OutputPower=document.getElementById("power_page");
+		PwConsumption=document.getElementById("pw_consumption_page");		
+	 	OutputBBPPower=document.getElementById("bbp_power_page");
+		ShowHDDDescription=document.getElementById("lsi_hdd_page");	//[Linda] add description for LSI HDD monitoring
+	 	PSInfo=document.getElementById("psinfo_page");		
+		PSIeSSD=document.getElementById("pcie_ssd_page");		
+		MultiNode		=	document.getElementById("multinode_page");
+		ShowPowerPage();
+	}
+	
+	function ShowPowerPage() 
+	{
+		
+		var url = '/cgi/ipmi.cgi';
+		var pars = 'Get_PlatformCap.XML=(0,0)&time_stamp='+(new Date());
+		var myAjax = new Ajax.Request(
+						 url,
+						 {method: 'post',parameters:pars, onComplete: ShowPowerPageResult}//reigister callback function
+						 );
+	}
+
+	function ShowPowerPageResult(originalRequest) 
+	{
+		if (originalRequest.readyState == 4 && originalRequest.status == 200)
+		{
+			var response = originalRequest.responseText.replace(/^\s+|\s+$/g,"");
+			var xmldoc=GetResponseXML(response);
+			if(xmldoc == null)
+			{
+				SessionTimeout();
+				return;
+			}
+			var IPMIRoot=xmldoc.documentElement;//point to IPMI
+			CapObj = IPMIRoot.getElementsByTagName('Platform');
+			CapValue = CapObj[0].getAttribute("Cap");
+			PlatformCapability = parseInt(CapValue,16);
+			EnPowerSupplyPageValue 	= CapObj[0].getAttribute("EnPowerSupplyPage");
+			EnPowerSupplyPage	   	= parseInt(EnPowerSupplyPageValue,16);
+			EnStoragePageValue     	= CapObj[0].getAttribute("EnStorage");
+			EnStoragePage			= parseInt(EnStoragePageValue,16);
+			EnMCUMultiNode_Page    	= parseInt(CapObj[0].getAttribute("EnMCUMultiNode"), 10 );		
+			EnPCIeSSD_Page         	= parseInt(CapObj[0].getAttribute("EnPCIeSSD"), 16 );		
+			
+			if((EnMCUMultiNode_Page) || (PlatformCapability & 0x800000))
+			{
+				MultiNode.innerHTML = "<li class=\"desc\"><span class=\"subdesc\">"+ lang.LANG_MISC_MULTINODE +
+				"</span>:<span class=\"subdesc\">"+lang.LANG_MISC_MULTINODE_DESC+"</span></li>";
+			}
+			
+			if(EnPowerSupplyPage)
+			{
+				PwConsumption.innerHTML = "<li class=\"desc\"><span class=\"subdesc\">"+ lang.LANG_MISC_PWCONSUMPTION + 
+				"</span>:<span class=\"subdesc\">"+lang.LANG_MISC_PWCONSUMPTION_DESC+"</span></li>";
+				PSInfo.innerHTML = "<li class=\"desc\"><span class=\"subdesc\">"+ lang.LANG_MISC_PSINFO_POWER +
+				"</span>:<span class=\"subdesc\">"+lang.LANG_MISC_PSINFO_POWER_DESC+"</span></li>";
+			}
+			
+			if (EnStoragePage)
+			{
+				ShowHDDDescription.innerHTML = "<li class=\"desc\"><span class=\"subdesc\">"+ lang.LANG_SERVER_HEALTH_STORAGE +
+				"</span>:<span class=\"subdesc\">"+lang.LANG_SERVER_HEALTH_STORAGE_DESC+"</span></li>";
+			}
+			if (EnPCIeSSD_Page)
+			{
+				PSIeSSD.innerHTML = "<li class=\"desc\"><span class=\"subdesc\">"+ lang.LANG_SERVER_HEALTH_PCIE_SSD +
+				"</span>:<span class=\"subdesc\">"+lang.LANG_SERVER_HEALTH_PCIE_SSD_DESC+"</span></li>";
+			}
+			
+		}
+	}
+	</script>
+</head>
+<body onload='PageInit()'>
+    <table border="0" cellpadding="0" cellspacing="0">
+        <tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td><td><div class="mtitle"><script>document.writeln(lang.LANG_SERVER_HEALTH_CAPTION)</script></div></td></tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr>
+            <td></td>
+            <td>
+                <div class="headerA"><script>document.writeln(lang.LANG_SERVER_HEALTH_DESC)</script></div>
+            </td>
+        </tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr><td></td>
+            <td>
+            <!-- below area is needed to modify by yourself -->
+                <ul>
+                    <li class="desc"><span class="subdesc"><script>document.writeln(lang.LANG_SERVER_HEALTH_READING)</script></span>:<span class="subdesc"><script>document.writeln(lang.LANG_SERVER_HEALTH_READING_DESC)</script></span></li>                   
+					
+					<li class="desc"><span class="subdesc"><script>document.writeln(lang.LANG_SERVER_HEALTH_LOG)</script></span>:<span class="subdesc"><script>document.writeln(lang.LANG_SERVER_HEALTH_LOG_DESC)</script></span></li>
+					
+                     <!-- bbp monitering
+                    <li class="desc"><span class="subdesc"><script>document.writeln(lang.LANG_SERVER_HEALTH_READING)</script></span>:<span class="subdesc"><script>document.writeln(lang.LANG_SERVER_HEALTH_READING_DESC)</script></span></li>
+					-->
+					
+                    <div id="multinode_page"> </div>
+					
+					<div id="pw_consumption_page"> </div>
+					
+					<div id="psinfo_page"> </div>
+					
+                    <div id="lsi_hdd_page"> </div>
+
+                    <div id="pcie_ssd_page"> </div>
+					
+					<!-- Power Monitoring -->
+                    <div id="power_page"> </div>
+                    <!-- BBP Power Monitoring -->
+                    <div id="bbp_power_page"> </div>
+
+                    
+
+		</ul>
+        	<!-- end of this area -->
+        	</td>
+        <tr>
+    </table>
+</body>
+</html>

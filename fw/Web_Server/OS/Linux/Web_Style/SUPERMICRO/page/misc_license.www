@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<META HTTP-EQUIV="Pragma" CONTENT="no_cache">
+	<META NAME="ATEN International Co Ltd." CONTENT="(c) ATEN International Co Ltd. 2010">
+	<META NAME="Super Micro Computer, Inc." CONTENT="(c) Super Micro Computer, Inc. 2014">
+	<title></title>
+	<!-- Page-specific styles -->
+	<link rel="stylesheet" href="../css/basic.css" type="text/css">
+	<!-- Dependency source files -->
+	<script type="text/javascript">document.write("<script type=\"text/javascript\", src = \"../js/lang/" + top.lang_setting + "/lang_str.js\"><\/script>");</script>
+	<script language="javascript" src="../js/utils.js"></script>
+	<script type="text/javascript">
+	/*
+	global variables
+	*/
+	var mainPage = "../cgi/url_redirect.cgi?url_name=miscellaneous";
+	function PageInit() {
+		document.getElementById("license_key_caption").innerHTML = lang.LANG_MISC_LICENSE_CAPTION;
+		document.getElementById("license_key_desc").innerHTML    = lang.LANG_MISC_LICENSE_DESC;
+		LicenseKey1        = document.getElementById("licensekey1");
+		LicenseKey2        = document.getElementById("licensekey2");
+		LicenseKey3        = document.getElementById("licensekey3");
+		LicenseKey4        = document.getElementById("licensekey4");
+		LicenseKey5        = document.getElementById("licensekey5");
+		LicenseKey6        = document.getElementById("licensekey6");
+		BtnActivate        = document.getElementById('btn_activate');
+		BtnActivate.value  = lang.LANG_MISC_LICENSE_ACTIVATE;
+		BtnActivate.onclick= doActivate;
+		$(TAG_ALERT)
+		$(TAG_MAINPAGE)
+		$(TAG_LICENSE)
+	}
+	function doActivate() {
+		var url  = '/cgi/ipmi.cgi';
+		var pars = 'BIOS_LINCENSE_ACTIVATE.XML=(0,0)';
+		var key1 = LicenseKey1.value;
+		var key2 = LicenseKey2.value;
+		var key3 = LicenseKey3.value;
+		var key4 = LicenseKey4.value;
+		var key5 = LicenseKey5.value;
+		var key6 = LicenseKey6.value;
+		if (key1.length != 4 || key2.length != 4 || key3.length != 4 || 
+			key4.length != 4 || key5.length != 4 || key6.length != 4 )
+		{
+			alert (lang.LANG_MISC_LICENSE_WARNING)
+			return;    
+		}
+		pars +='&time_stamp='+(new Date()) + '&bioskey0='+ key1 +'&bioskey1='+key2 +'&bioskey2='+key3+'&bioskey3='+key4+'&bioskey4='+key5+'&bioskey5='+key6;
+		var myAjax = new Ajax.Request(
+					url,
+					{method: 'post',parameters:pars, onComplete: ActivateStatusResp}
+					);
+	}
+	function license_activated() {
+		LicenseKey1.disabled	= true;
+		LicenseKey1.value		= "****";
+		LicenseKey2.disabled	= true;
+		LicenseKey2.value		= "****";
+		LicenseKey3.disabled	= true;
+		LicenseKey3.value		= "****";
+		LicenseKey4.disabled   = true;
+		LicenseKey4.value		= "****";
+		LicenseKey5.disabled	= true;
+		LicenseKey5.value		= "****";
+		LicenseKey6.disabled	= true;
+		LicenseKey6.value		= "****";
+		document.getElementById("license_status").innerHTML = lang.LANG_MISC_LICENSE_ACTIVATED;
+		BtnActivate.style.display="none";
+	}
+	function license_unactivated() {
+	    document.getElementById("license_status").innerHTML = lang.LANG_MISC_LICENSE_NOTACTIVATED;
+	}
+	function ActivateStatusResp(originalRequest) {
+		HandleXMLResponse(
+			function(xmldoc)
+			{
+				location.href = '../cgi/url_redirect.cgi?url_name=misc_license';
+			}
+			,originalRequest);
+	}
+	function Checkfocus(index) {
+		var len = index.value.length;
+		if ((index.id == "licensekey1") && (len == 4)) {
+			document.getElementById("licensekey2").focus();
+		} else if ((index.id == "licensekey2") && (len == 4)) {
+			document.getElementById("licensekey3").focus();
+		} else if ((index.id == "licensekey3") && (len == 4)) {
+			document.getElementById("licensekey4").focus();
+		} else if ((index.id == "licensekey4") && (len == 4)) {
+			document.getElementById("licensekey5").focus();
+		} else if ((index.id == "licensekey5") && (len == 4)) {
+			document.getElementById("licensekey6").focus();
+		}
+	}
+	</script>
+</head>
+<body onload= 'PageInit()'>
+    <span class="LoadingStyle" id="loading"></span>
+    <table border="0" cellpadding="0" cellspacing="0" class="mtable" style="width: 100%">
+        <tr><td width="20px"><img src="../images/arrow_red.gif" border="0" class="redarrow"></td>
+            <td><div class="mtitle"><span id="license_key_caption"></div></td>
+        </tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr>
+            <td></td>
+            <td colspan="3">
+                <table class="boxSection"><tr><td><div class="textA">
+                    <span id="license_key_desc">
+                </div></td><tr></table>
+            </td>
+        </tr>
+        <tr><td><br></td><td><br></td></tr>
+        <tr><td></td>
+            <td>
+            <!-- below area is needed to modify by yourself --> 
+            <table border="0">
+                <tr>
+					<td colspan="7"><div class="labelhead"><script>document.writeln(lang.LANG_MISC_LICENSE_STATUS)</script><span class ="label" id="license_status"></span></div></td>
+                </tr>
+                <tr>
+                    <td><div class="labelhead"><script>document.writeln(lang.LANG_MISC_LICENSE_KEY)</script></div></td>
+                    <td> <input type="text" oninput="Checkfocus(this)" size="4" maxlength="4" name="licensekey1" id="licensekey1" $(TAG_DISABLE)/></td>
+                    <td>-<input type="text" oninput="Checkfocus(this)" size="4" maxlength="4" name="licensekey2" id="licensekey2" $(TAG_DISABLE)/></td>
+                    <td>-<input type="text" oninput="Checkfocus(this)" size="4" maxlength="4" name="licensekey3" id="licensekey3" $(TAG_DISABLE)/></td>
+                    <td>-<input type="text" oninput="Checkfocus(this)" size="4" maxlength="4" name="licensekey4" id="licensekey4" $(TAG_DISABLE)/></td>
+                    <td>-<input type="text" oninput="Checkfocus(this)" size="4" maxlength="4" name="licensekey5" id="licensekey5" $(TAG_DISABLE)/></td>
+                    <td>-<input type="text" oninput="Checkfocus(this)" size="4" maxlength="4" name="licensekey6" id="licensekey6" $(TAG_DISABLE)/></td>
+                    <!--<td> <span class ="label" id="license_status"></span> </td>-->
+                </tr>
+                <tr>
+                    <td><input type="button" class="btnStyle" id="btn_activate" $(TAG_DISABLE)></td>
+                </tr>
+            </table>   
+            <!-- end of this area -->
+            </td>
+        <tr>
+    </table>
+</body>
+</html>

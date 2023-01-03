@@ -1,0 +1,121 @@
+-include $(PRJ_PATH)/.SDKPath
+SMASHDIR = $(PRJ_PATH)/SMASH
+CCINCLUDE = $(PRJ_PATH)/SFCC/sfcc/local/include/CimClientLib
+CCAPIDIR = $(SMASHDIR)/SFCC_API
+SMASHDST = $(PRJ_PATH)/SMASH/SMASH
+CXX = $(CROSS_COMPILE)gcc
+HOST = $(subst -gcc,,$(notdir $(CROSS_COMPILE)gcc))
+DBDIR = $(PRJ_PATH)/SMASH/dropbear
+DBSRCDIR = $(PRJ_PATH)/SMASH/dropbear-0.52
+SHELLDIR = $(SMASHDIR)/shell
+TREE_UTIL_SRC_PATH = $(PRJ_PATH)/SMASH/tree-1.5.2.2-src/src/tree/1.5.2.2/tree-1.5.2.2-src
+DTKSMASH_DIR = $(DTKPATH)/SMASH
+
+all:
+install:
+	@echo "*************Build Dropbear Begin******************"
+	if [ ! -d $(DBDIR) ];then \
+	mkdir $(DBDIR); fi
+	if [ ! -d $(DBSRCDIR) ];then \
+	tar zxf dropbear-0.52.tar.gz; \
+	cd $(DBSRCDIR); \
+	./configure --host=$(HOST) --prefix=$(DBDIR) --exec-prefix=/dropbear CPPFLAGS=-I$(PRJ_PATH)/SFCB/zlib-1.2.3/zlib/include LDFLAGS=" $(LDFLAGS )-L$(PRJ_PATH)/SFCB/zlib-1.2.3/zlib/lib -L$(PRJ_PATH)/lib" --disable-syslog --disable-utmp --disable-utmpx CFLAGS=" -Os $(CFLAGS) "; \
+	cp -af ../dropbear_patch/* .; \
+	make; \
+	make install; fi
+	cd $(DBSRCDIR); \
+	rm -rf $(DBDIR)/bin/*; \
+	$(STRIP) --strip-unneeded $(DBDIR)/sbin/dropbear; 
+	pwd;cp -af *_host_key $(DBDIR)/bin;
+	cp -af $(DBDIR) $(FS_PATH);
+	@echo "*************Build Dropbear End******************"
+	@echo "*************Build Shell******************"
+	cd $(SHELLDIR); \
+	make;
+	@echo "*************Build Shell End******************"
+	if [ ! -d $(SMASHDST) ];then \
+        mkdir $(SMASHDST); fi
+	if [ ! -d $(SMASHDST)/lib ];then \
+        mkdir $(SMASHDST)/lib; fi
+	cd $(CCAPIDIR); \
+	make;
+	cd $(SMASHDIR); \
+	$(CXX) -o chport chport.c -Os; \
+	$(CXX) -o ShowProperty ShowProperty.c -I$(CCINCLUDE) -lSFCC_API -L$(SMASHDST)/lib -Os; \
+	$(CXX) -o deletemethod deletemethod.c -I$(CCINCLUDE) -lSFCC_API -L$(SMASHDST)/lib -Os; \
+	$(CXX) -o start start.c -I$(CCINCLUDE)   -lSFCC_API -L$(SMASHDST)/lib -Os; \
+	$(CXX) -o stop stop.c -I$(CCINCLUDE) -lSFCC_API -L$(SMASHDST)/lib -Os; \
+	$(CXX) -o reset reset.c -I$(CCINCLUDE) -lSFCC_API -L$(SMASHDST)/lib -Os; \
+	$(CXX) -o load load.c $(CFLAGS) $(LDFLAGS) -I$(CCINCLUDE) -lSFCC_API -L$(SMASHDST)/lib -Os; \
+	$(CXX) -o buildFS buildFS.c -I$(CCINCLUDE) -lSFCC_API -L$(SMASHDST)/lib -Os;
+	@echo "*************Build Tree Utility******************"
+	@if [ ! -d ${TREE_UTIL_SRC_PATH} ];then \
+	tar -zxvf tree-1.5.2.2.tar.gz; fi
+	@cd ${TREE_UTIL_SRC_PATH}; \
+	make CC=${CC} prefix=${TREE_UTIL_SRC_PATH}/bin XOBJS=strverscmp.o
+	@cp -f ${TREE_UTIL_SRC_PATH}/tree $(SMASHDST)
+	@$(STRIP) --strip-unneeded $(SMASHDST)/tree;	
+	@echo "*************Copy SMASH to FileSystem******************"
+	rm -rf $(SMASHDST)/lib/*.o;
+	mv -f $(SMASHDIR)/ShowProperty $(SMASHDST);
+	mv -f $(SMASHDIR)/buildFS $(SMASHDST);
+	mv -f $(SMASHDIR)/deletemethod $(SMASHDST);
+	mv -f $(SMASHDIR)/chport $(SMASHDST);
+	mv -f $(SMASHDIR)/start $(SMASHDST);
+	mv -f $(SMASHDIR)/stop $(SMASHDST);
+	mv -f $(SMASHDIR)/reset $(SMASHDST);
+	mv -f $(SMASHDIR)/load $(SMASHDST);
+	mv -f $(SMASHDIR)/msh $(SMASHDST);
+	$(STRIP) --strip-unneeded $(SMASHDST)/lib/*;
+	$(STRIP) --strip-unneeded $(SMASHDST)/ShowProperty;
+	$(STRIP) --strip-unneeded $(SMASHDST)/buildFS;
+	$(STRIP) --strip-unneeded $(SMASHDST)/deletemethod;
+	$(STRIP) --strip-unneeded $(SMASHDST)/chport;
+	$(STRIP) --strip-unneeded $(SMASHDST)/start;
+	$(STRIP) --strip-unneeded $(SMASHDST)/stop;
+	$(STRIP) --strip-unneeded $(SMASHDST)/reset;
+	$(STRIP) --strip-unneeded $(SMASHDST)/load;
+	$(STRIP) --strip-unneeded $(SMASHDST)/msh;
+	cp -af $(SMASHDIR)/db.sh $(SMASHDST);
+	chmod 777 -R $(SMASHDST); \
+	mv $(SMASHDST)/lib/* $(FS_PATH)/lib;
+	cp -af $(SMASHDST) $(FS_PATH);
+	
+clean:
+	@echo "*************Clean SMASH******************"
+	rm -rf $(SMASHDST);
+	@echo "*************Clean Dropbear******************"
+	rm -rf $(DBSRCDIR); 
+	rm -rf $(DBDIR);
+	cd $(CCAPIDIR); \
+	make clean;
+	cd $(SHELLDIR); \
+	make clean;
+	rm -rf $(PRJ_PATH)/SMASH/tree-1.5.2.2-src
+	
+.PHONY: extract
+extract:
+	$(Q)echo "******************** extract SMASH ********************"
+	$(Q)if [ ! -d $(DTKSMASH_DIR) ];then mkdir -p $(DTKSMASH_DIR); \
+	cd $(DTKSMASH_DIR); mkdir SFCC_API; mkdir shell; mkdir SFCC_API/inc; fi
+	$(Q)cp -f $(PRJ_PATH)/SMASH/*.c $(DTKSMASH_DIR)/
+	$(Q)cp -f $(PRJ_PATH)/SMASH/*.gz $(DTKSMASH_DIR)/
+	$(Q)cp -f $(PRJ_PATH)/SMASH/*.sh $(DTKSMASH_DIR)/		
+	$(Q)cp -f $(PRJ_PATH)/SMASH/SFCC_API/*.c $(DTKSMASH_DIR)/SFCC_API/
+	$(Q)cp -f $(PRJ_PATH)/SMASH/SFCC_API/Makefile $(DTKSMASH_DIR)/SFCC_API/
+	$(Q)cp -rf $(PRJ_PATH)/SMASH/SFCC_API/inc $(DTKSMASH_DIR)/SFCC_API/
+	$(Q)cp -f $(PRJ_PATH)/SMASH/shell/*.c $(DTKSMASH_DIR)/shell/
+	$(Q)rm -f $(DTKSMASH_DIR)/shell/msh.c
+	$(Q)cp -f $(PRJ_PATH)/SMASH/shell/msh.o $(DTKSMASH_DIR)/shell/
+	$(Q)cp -f $(PRJ_PATH)/SMASH/shell/*.h $(DTKSMASH_DIR)/shell/
+	$(Q)cp -f $(PRJ_PATH)/SMASH/shell/*.gz $(DTKSMASH_DIR)/shell/
+	$(Q)cp -f $(PRJ_PATH)/SMASH/shell/*.l $(DTKSMASH_DIR)/shell/
+	$(Q)cat $(PRJ_PATH)/SMASH/shell/Makefile | sed -e 's/msh.c/msh.o/g' > $(DTKSMASH_DIR)/shell/Makefile
+	$(Q)cat $(PRJ_PATH)/SMASH/Makefile| sed \
+	-e '/SDK/d' -e '/DTK/d' \
+	-e '/extract/d' \
+	-e '/cat Makefile|/d' \
+	-e "/-e [\'\"]/d" \
+	> $(DTKSMASH_DIR)/Makefile
+	$(Q)chmod 744 $(DTKSMASH_DIR)/Makefile
+	

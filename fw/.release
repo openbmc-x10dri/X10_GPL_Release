@@ -1,0 +1,7 @@
+.PHONY: x10
+
+rd jbod x10:
+	$(Q)cp Project_File/platform_$@ .config
+	$(Q)./conf -o PKConfig/Lx_Config/Config_all.in >>/dev/NULL 2>&1
+	$(Q)./config && mv .tmpconfig.h autoconfig.h;
+	$(Q)$(MAKE) && $(MAKE) install ver=$(ver)
